@@ -1,5 +1,6 @@
-"use client";
+"use client"
 
+import axios from "axios";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,10 +10,15 @@ export function HeroSectionComponent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would integrate your API call
-    console.log("Searching for:", searchQuery);
+
+    try {
+      const response = await axios.post("/api/search", { search: searchQuery });
+      console.log("Search results:", response.data);
+    } catch (error) {
+      console.error("Error searching:", error);
+    }
   };
 
   useEffect(() => {
