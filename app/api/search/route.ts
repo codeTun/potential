@@ -12,17 +12,17 @@ if (!API_KEY) {
 }
 
 export async function POST(req: Request) {
-  const { search } = await req.json();
-
-  // Validate search input
-  if (!search) {
-    return new Response(
-      JSON.stringify({ message: "Search query is required" }),
-      { status: 400 }
-    );
-  }
-
   try {
+    const { search } = await req.json();
+
+    // Validate search input
+    if (!search) {
+      return new Response(
+        JSON.stringify({ message: "Search query is required" }),
+        { status: 400 }
+      );
+    }
+
     // Making the API request
     const response = await axios.post(
       API_URL!,
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       {
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": API_KEY,
+          "api-key": API_KEY, // Ensure the header name matches what the API expects
         },
       }
     );

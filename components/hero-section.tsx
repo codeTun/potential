@@ -1,10 +1,10 @@
-"use client";
+"use client"
 
+import axios from "axios";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sparkles, Search, Menu } from "lucide-react";
-import axios from "axios";
 
 export function HeroSectionComponent() {
   const [searchQuery, setSearchQuery] = useState("");
