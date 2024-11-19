@@ -8,10 +8,14 @@ import axios from "axios";
 
 interface Dataset {
   "@search.score": number;
-  chunk_id: string;
-  parent_id: string;
-  chunk: string;
   title: string;
+  description: string;
+  identifier: string;
+  publisher: {
+    data: {
+      name: string;
+    };
+  };
 }
 
 interface ApiResponse {
@@ -109,57 +113,6 @@ export function SearchResultsComponent({
     },
   };
 
-  const parseChunk = (
-    chunk: string
-  ): {
-    title: string;
-    description: string;
-    publisher: string;
-    identifier: string;
-  } => {
-    try {
-      // Remove control characters
-      const cleanedChunk = chunk.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
-
-      // Regular expressions to extract fields
-      const identifierRegex = /"identifier":\s*"([^"]+)"/;
-      const titleRegex = /"title":\s*"([^"]+)"/;
-      const descriptionRegex = /"description":\s*"([^"]+)"/;
-      const publisherRegex = /"publisher":\s*{[^}]*"name":\s*"([^"]+)"[^}]*}/;
-
-      const identifierMatch = cleanedChunk.match(identifierRegex);
-      const titleMatch = cleanedChunk.match(titleRegex);
-      const descriptionMatch = cleanedChunk.match(descriptionRegex);
-      const publisherMatch = cleanedChunk.match(publisherRegex);
-
-      const identifier = identifierMatch
-        ? identifierMatch[1]
-        : "Unknown Identifier";
-      const title = titleMatch ? titleMatch[1] : "Untitled Dataset";
-      const description = descriptionMatch
-        ? descriptionMatch[1]
-        : "No description available";
-      const publisher = publisherMatch
-        ? publisherMatch[1]
-        : "Unknown Publisher";
-
-      return {
-        title,
-        description,
-        publisher,
-        identifier,
-      };
-    } catch (error) {
-      console.error("Error parsing chunk:", error);
-      return {
-        title: "Untitled Dataset",
-        description: "No description available",
-        publisher: "Unknown Publisher",
-        identifier: "Unknown Identifier",
-      };
-    }
-  };
-
   return (
     <section className="py-16 bg-gradient-to-b from-blue-700 to-blue-900">
       <div className="container mx-auto px-4">
@@ -195,11 +148,26 @@ export function SearchResultsComponent({
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {datasets.map((dataset) => {
-                  const { title, description, identifier } = parseChunk(
-                    dataset.chunk
-                  );
+                  const title = dataset.title || "Untitled Dataset";
+                  const description =
+                    dataset.description || "No description available";
+                  const identifier = dataset.identifier || "Unknown Identifier";
+                  const publisher =
+                    dataset.publisher?.data?.name || "Unknown Publisher";
+
+                  console.log("Dataset:", {
+                    title,
+                    description,
+                    identifier,
+                    publisher,
+                  });
+
                   return (
-                    <motion.div key={dataset.chunk_id} variants={itemVariants}>
+                    <motion.div
+                      // Updated the key prop to ensure it's unique
+                      key={dataset.identifier || dataset["@search.score"]}
+                      variants={itemVariants}
+                    >
                       <Card className="bg-white bg-opacity-10 backdrop-filter backdrop-blur-lg border-none hover:bg-opacity-20 transition-all duration-300 cursor-pointer">
                         <CardContent className="p-6">
                           <Database className="h-8 w-8 text-blue-400 mb-4" />

@@ -1,8 +1,7 @@
 // FILE: app/api/dataset/route.ts
 import axios from "axios";
 
-const API_DATASET_BASE_URL =
-  "https://data.abudhabi/opendata/api/1/metastore/schemas/dataset/items/";
+const API_DATASET_BASE_URL = process.env.GPT_DATASET_API;
 
 // Since 'show-reference-ids=false' is a constant, we can append it directly.
 
