@@ -1,3 +1,4 @@
+// FILE: app/api/search/route.ts
 import axios from "axios";
 
 const API_KEY = process.env.SEARCH_AI_API_KEY;
@@ -11,15 +12,15 @@ if (!API_KEY) {
   throw new Error("SEARCH_AI_API_KEY environment variable is not defined");
 }
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const { search } = await req.json();
+    const { search } = await request.json();
 
     // Validate search input
     if (!search) {
       return new Response(
         JSON.stringify({ message: "Search query is required" }),
-        { status: 400 }
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -34,32 +35,26 @@ export async function POST(req: Request) {
       {
         headers: {
           "Content-Type": "application/json",
-          "api-key": API_KEY, // Ensure the header name matches what the API expects
+          "api-key": API_KEY,
         },
       }
     );
 
     // Return successful response
-    return new Response(JSON.stringify(response.data), { status: 200 });
-  } catch (error) {
-    // Enhanced error handling
-    if (axios.isAxiosError(error)) {
-      // Axios specific error handling
-      console.error(
-        "Axios error:",
-        error.response ? error.response.data : error.message
-      );
-      return new Response(
-        JSON.stringify({ message: `Axios error: ${error.message}` }),
-        { status: 500 }
-      );
-    } else {
-      // General error handling
-      console.error("Unexpected error:", error);
-      return new Response(
-        JSON.stringify({ message: "Internal server error" }),
-        { status: 500 }
-      );
-    }
+    return new Response(JSON.stringify(response.data), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error: unknown) {
+    const errorMessage =
+      axios.isAxiosError(error) && error.response
+        ? error.response.data
+        : String(error);
+
+    console.error("Error:", errorMessage);
+    return new Response(
+      JSON.stringify({ message: `Error: ${errorMessage}` }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
 }

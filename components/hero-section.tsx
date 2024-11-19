@@ -1,24 +1,20 @@
-"use client"
-
-import axios from "axios";
+"use client";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sparkles, Search, Menu } from "lucide-react";
 
-export function HeroSectionComponent() {
+export function HeroSectionComponent({
+  onSearch,
+}: {
+  onSearch: (query: string) => void;
+}) {
   const [searchQuery, setSearchQuery] = useState("");
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
-  const handleSearch = async (e: React.FormEvent) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-
-    try {
-      const response = await axios.post("/api/search", { search: searchQuery });
-      console.log("Search results:", response.data);
-    } catch (error) {
-      console.error("Error searching:", error);
-    }
+    onSearch(searchQuery);
   };
 
   useEffect(() => {
