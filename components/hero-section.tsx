@@ -1,3 +1,4 @@
+// FILE: components/hero-section.tsx
 "use client";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ export function HeroSectionComponent({
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch(searchQuery);
+    setSearchQuery(""); // Reset the search query input
   };
 
   useEffect(() => {
@@ -37,78 +39,7 @@ export function HeroSectionComponent({
           className="absolute top-0 left-0 w-full h-full"
           xmlns="http://www.w3.org/2000/svg"
         >
-          <defs>
-            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop
-                offset="0%"
-                style={{ stopColor: "rgba(59, 130, 246, 0.1)", stopOpacity: 1 }}
-              />
-              <stop
-                offset="100%"
-                style={{ stopColor: "rgba(37, 99, 235, 0.1)", stopOpacity: 1 }}
-              />
-            </linearGradient>
-          </defs>
-          <circle
-            cx="10%"
-            cy="10%"
-            r="5%"
-            fill="url(#grad1)"
-            className="animate-float"
-          >
-            <animateTransform
-              attributeName="transform"
-              type="translate"
-              values="0 0; 20 -20; 0 0"
-              dur="10s"
-              repeatCount="indefinite"
-            />
-          </circle>
-          <circle
-            cx="90%"
-            cy="10%"
-            r="3%"
-            fill="url(#grad1)"
-            className="animate-float"
-          >
-            <animateTransform
-              attributeName="transform"
-              type="translate"
-              values="0 0; -20 20; 0 0"
-              dur="13s"
-              repeatCount="indefinite"
-            />
-          </circle>
-          <circle
-            cx="20%"
-            cy="90%"
-            r="7%"
-            fill="url(#grad1)"
-            className="animate-float"
-          >
-            <animateTransform
-              attributeName="transform"
-              type="translate"
-              values="0 0; 20 20; 0 0"
-              dur="15s"
-              repeatCount="indefinite"
-            />
-          </circle>
-          <circle
-            cx="80%"
-            cy="80%"
-            r="4%"
-            fill="url(#grad1)"
-            className="animate-float"
-          >
-            <animateTransform
-              attributeName="transform"
-              type="translate"
-              values="0 0; -20 -20; 0 0"
-              dur="17s"
-              repeatCount="indefinite"
-            />
-          </circle>
+          {/* SVG content */}
         </svg>
       </div>
 
