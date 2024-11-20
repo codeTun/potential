@@ -45,7 +45,6 @@ export function PotentialSection() {
 
   const SYSTEM_PROMPT = {
     role: "system",
-    type: "text",
     content: "You are the Abu Dhabi's open data platform AI assistant. You are helpful and friendly and you only respond to images that you receive and analyze or questions that you can help with in providing the best datasets from the open data platform. You are interactive to help the user get the best dataset he's searching for. You might receive an image from the user without context, analyze it along with the data you have in case the user intent is some data based on that image.\nThis is the data from the search engine you have:\nin the certificate of completion form.\",\r\n        \"descriptionlear\": \"إجمالي عدد المباني على الأرض المخصصة للبناء والمضمنة في شهادة نموذج الإنجاز.\",\r\n        \"issued\": \"2023-10-30T08:55:07+00:00\",\r\n        \"modified\": \"2024-08-23T06:19:47+00:00\",\r\n        \"license\": \"https://data.abudhabi/opendata/addata_open_license\",\r\n        \"licenselear\": \"https://data.abudhabi/opendata/node/6041?language=ar\",\r\n        \"publisher\": {\r\n            \"data\": {\r\n                \"@type\": \"org:Organization\",\r\n                \"name\": \"Department of Municipalities and Transport\"\r\n            }\r\n        },\r\n        \"publisherlear\": {\r\n            \"data\": {\r\n                \"@type\": \"org:Organization\",\r\n                \"name\": \"دائرة البلديات والنقل\"\r\n            }\r\n        },\r\n        \"contactPoint\": {\r\n            \"fn\": \"Mohamed Alzaabi\",\r\n            \"fnlear\": \"محمد الزعابي\",\r\n            \"hasEmail\": \"mohamed.alzaabi@dmt.gov.ae\"\r\n        },\r\n        \"theme\": [\r\n            {\r\n                \"data\": \"Economy\"\r\n            }\r\n        ],\r\n        \"themelear\": [\r\n            {\r\n                \"data\": \"الاقتصاد\"\r\n            }\r\n        ],\r\n        \"keyword\": [\r\n            {\r\n                \"data\": \"AbuDhabi\"\r\n            },\r\n            {\r\n                \"data\": \"Housing\"\r\n            }\r\n        ],\r\n        \"keywordlear\": [\r\n            {\r\n                \"data\": \"أبوظبي\"\r\n            },\r\n            {\r\n                \"data\": \"المساكن\"\r\n            }\r\n        ],\r\n        \"distribution\": [\r\n            {\r\n                \"data\": {\r\n                    \"descriptionlear\": null,\r\n                    \"format\": \"excel\",\r\n                    \"mediaType\": null,\r\n                    \"downloadURL\": \"https://data.abudhabi/opendata/sites/default/files/uploaded_resources/Number%20of%20Building%20Completion%20-%20Emirates%20of%20Abu%20Dhabi.xlsx\"\r\n                }\r\n            }\r\n        ]\r\n    },\r\n    {\r\n        \"title\": \"Number of Building completions by region\", }\r\n        },\r\n        \"publisherlear\": {\r\n            \"data\": {\r\n                \"@type\": \"org:Organization\",\r\n                \"name\": \"دائرة البلديات والنقل\"\r\n            }\r\n        },\r\n        \"contactPoint\": {\r\n            \"fn\": \"Mohamed Alzaabi\",\r\n            \"fnlear\": \"محمد الزعابي\",\r\n            \"hasEmail\": \"mohamed.alzaabi@dmt.gov.ae\"\r\n        },\r\n        \"theme\": [\r\n            {\r\n                \"data\": \"Economy\"\r\n            }\r\n        ],\r\n        \"themelear\": [\r\n            {\r\n                \"data\": \"الاقتصاد\"\r\n            }\r\n        ],\r\n        \"keyword\": [\r\n            {\r\n                \"data\": \"AbuDhabi\"\r\n            }\r\n        ],\r\n        \"keywordlear\": [\r\n            {\r\n                \"data\": \"أبوظبي\"\r\n            }\r\n        ],\r\n        \"distribution\": [\r\n            {\r\n                \"data\": {\r\n                    \"descriptionlear\": null,\r\n                    \"format\": \"excel\",\r\n                    \"mediaType\": null,\r\n                    \"downloadURL\": \"https://data.abudhabi/opendata/sites/default/files/uploaded_resources/Number%20of%20Building%20Completion%20by%20Region%20-%20Abu%20Dhabi.xlsx\"\r\n                }\r\n            }\r\n        ]\r\n    },\r\n    {\r\n        \"title\": \"Residential unit completions - Emirate of Abu Dhabi\",\r\n        \"titlear\": \" الوحدات السكنية المنجزة - إمارة أبوظبي\",\r\n        \"identifier\": \"74fdde80-b8ec-4289-8803-5d4e3db55476\",\r\n        \"description\": \"Residential units are residential buildings with different architectural forms and used for residential purposes.\\r\\n\",\r\n        \"descriptionlear\": \" المباني السكنية ذات الأشكال المعمارية المختلفة والمستخدمة للأغراض السكنية\",\r\n        \"issued\": \"2023-11-02T09:45:33+00:00\",\r\n        \"modified\": \"2024-08-23T06:22:15+00:00\",\r\n        \"license\": \"https://data.abudhabi/opendata/addata_open_license\",\r\n        \"licenselear\": \"https://data.abudhabi/opendata/node/6041?language=ar\",\r\n        \"publisher\": {\r\n            \"data\": {\r\n                \"@type\": \"org:Organization\",\nYou only return your response in this structure \"[[datasets_identifiers_separated_by_comma_each_in_a_list_you_only_put_the_first_identifier_of_each_dataset_in_case_you_wanted_to_return_more_than_one_dataset],your_response]\""
   };
   
@@ -53,10 +52,8 @@ export function PotentialSection() {
     if (input.trim()) {
       // Create the user message with proper content structure (including type)
       const userMessage = {
-        role: 'user',
-        content: [
-          { type: 'text', text: input.trim() }
-        ]
+        role: "user",
+        content: input.trim()
       };
   
       // Retrieve chat history from local storage
@@ -66,8 +63,7 @@ export function PotentialSection() {
       chatHistory.push(userMessage);
   
       // Include the system prompt at the top of the chat history
-      const fullChat = [SYSTEM_PROMPT, ...chatHistory];
-  
+      const fullChat = [SYSTEM_PROMPT, ...chatHistory, userMessage];
       setMessages((prev) => [...prev, { text: input, sender: 'user' }]);
       setInput(''); // Clear input field
   
@@ -84,20 +80,14 @@ export function PotentialSection() {
   
         // Append the assistant's response to chat history
         const botMessage = {
-          role: 'assistant',
-          content: [
-            { type: 'text', text: botReply }
-          ]
+          role: "assistant",
+          content: botReply
         };
-        chatHistory.push(botMessage);
-  
-        // Save updated chat history (excluding system prompt) to local storage
-        // Ensure we only store the last 6 messages (user + assistant)
-        if (chatHistory.length > MAX_HISTORY) {
-          chatHistory.shift(); // Remove the oldest chat if exceeding the limit
-        }
-        localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
-  
+        chatHistory.push(userMessage, botMessage);
+if (chatHistory.length > MAX_HISTORY) {
+  chatHistory.shift();
+}
+localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
         // Update the UI with the bot's response
         setMessages((prev) => [...prev, { text: botReply, sender: 'bot' }]);
       } catch (error) {
