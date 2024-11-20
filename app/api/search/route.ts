@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       {
         search,
         queryType: "full",
-        top: 10,
+        top: 5,
       },
       {
         headers: {

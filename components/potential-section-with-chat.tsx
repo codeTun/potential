@@ -12,9 +12,10 @@ export function PotentialSection() {
   const [isVisible, setIsVisible] = useState(false)
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [messages, setMessages] = useState<{ text: string; sender: 'user' | 'bot' }[]>([
-    { text: "Hello! I'm your AI assistant. How can I help you today?", sender: 'bot' }
+    { text: "Hello! I'm your Abu-dhabi Open-data AI assistant. How can I help you today?", sender: 'bot' }
   ])
   const [input, setInput] = useState('')
+  const [dataset, setDataset] = useState("") // To store results from the AI search engine
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 500)
@@ -40,69 +41,120 @@ export function PotentialSection() {
       opacity: 1
     }
   }
-let dataset = "in the certificate of completion form.\", \"descriptionlear\": \"\u0625\u062c\u0645\u0627\u0644\u064a \u0639\u062f\u062f \u0627\u0644\u0645\u0628\u0627\u0646\u064a \u0639\u0644\u0649 \u0627\u0644\u0623\u0631\u0636 \u0627\u0644\u0645\u062e\u0635\u0635\u0629 \u0644\u0644\u0628\u0646\u0627\u0621 \u0648\u0627\u0644\u0645\u0636\u0645\u0646\u0629 \u0641\u064a \u0634\u0647\u0627\u062f\u0629 \u0646\u0645\u0648\u0630\u062c \u0627\u0644\u0625\u0646\u062c\u0627\u0632.\", \"issued\": \"2023-10-30T08:55:07+00:00\", \"modified\": \"2024-08-23T06:19:47+00:00\", \"license\": \"https://data.abudhabi/opendata/addata_open_license\", \"licenselear\": \"https://data.abudhabi/opendata/node/6041?language=ar\", \"publisher\": { \"data\": { \"@type\": \"org:Organization\", \"name\": \"Department of Municipalities and Transport\" } }, \"publisherlear\": { \"data\": { \"@type\": \"org:Organization\", \"name\": \"\u062f\u0627\u0626\u0631\u0629 \u0627\u0644\u0628\u0644\u062f\u064a\u0627\u062a \u0648\u0627\u0644\u0646\u0642\u0644\" } }, \"contactPoint\": { \"fn\": \"Mohamed Alzaabi\", \"fnlear\": \"\u0645\u062d\u0645\u062f \u0627\u0644\u0632\u0639\u0627\u0628\u064a\", \"hasEmail\": \"mohamed.alzaabi@dmt.gov.ae\" }, \"theme\": [ { \"data\": \"Economy\" } ], \"themelear\": [ { \"data\": \"\u0627\u0644\u0627\u0642\u062a\u0635\u0627\u062f\" } ], \"keyword\": [ { \"data\": \"AbuDhabi\" }, { \"data\": \"Housing\" } ], \"keywordlear\": [ { \"data\": \"\u0623\u0628\u0648\u0638\u0628\u064a\" }, { \"data\": \"\u0627\u0644\u0645\u0633\u0627\u0643\u0646\" } ], \"distribution\": [ { \"data\": { \"descriptionlear\": null, \"format\": \"excel\", \"mediaType\": null, \"downloadURL\": \"https://data.abudhabi/opendata/sites/default/files/uploaded_resources/Number%20of%20Building%20Completion%20-%20Emirates%20of%20Abu%20Dhabi.xlsx\" } } ] }, { \"title\": \"Number of Building completions by region\", } }, \"publisherlear\": { \"data\": { \"@type\": \"org:Organization\", \"name\": \"\u062f\u0627\u0626\u0631\u0629 \u0627\u0644\u0628\u0644\u062f\u064a\u0627\u062a \u0648\u0627\u0644\u0646\u0642\u0644\" } }, \"contactPoint\": { \"fn\": \"Mohamed Alzaabi\", \"fnlear\": \"\u0645\u062d\u0645\u062f \u0627\u0644\u0632\u0639\u0627\u0628\u064a\", \"hasEmail\": \"mohamed.alzaabi@dmt.gov.ae\" }, \"theme\": [ { \"data\": \"Economy\" } ], \"themelear\": [ { \"data\": \"\u0627\u0644\u0627\u0642\u062a\u0635\u0627\u062f\" } ], \"keyword\": [ { \"data\": \"AbuDhabi\" } ], \"keywordlear\": [ { \"data\": \"\u0623\u0628\u0648\u0638\u0628\u064a\" } ], \"distribution\": [ { \"data\": { \"descriptionlear\": null, \"format\": \"excel\", \"mediaType\": null, \"downloadURL\": \"https://data.abudhabi/opendata/sites/default/files/uploaded_resources/Number%20of%20Building%20Completion%20by%20Region%20-%20Abu%20Dhabi.xlsx\" } } ] }, { \"title\": \"Residential unit completions - Emirate of Abu Dhabi\", \"titlear\": \" \u0627\u0644\u0648\u062d\u062f\u0627\u062a \u0627\u0644\u0633\u0643\u0646\u064a\u0629 \u0627\u0644\u0645\u0646\u062c\u0632\u0629 - \u0625\u0645\u0627\u0631\u0629 \u0623\u0628\u0648\u0638\u0628\u064a\", \"identifier\": \"74fdde80-b8ec-4289-8803-5d4e3db55476\", \"description\": \"Residential units are residential buildings with different architectural forms and used for residential purposes.\", \"descriptionlear\": \" \u0627\u0644\u0645\u0628\u0627\u0646\u064a \u0627\u0644\u0633\u0643\u0646\u064a\u0629 \u0630\u0627\u062a \u0627\u0644\u0623\u0634\u0643\u0627\u0644 \u0627\u0644\u0645\u0639\u0645\u0627\u0631\u064a\u0629 \u0627\u0644\u0645\u062e\u062a\u0644\u0641\u0629 \u0648\u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645\u0629 \u0644\u0644\u0623\u063a\u0631\u0627\u0636 \u0627\u0644\u0633\u0643\u0646\u064a\u0629\", \"issued\": \"2023-11-02T09:45:33+00:00\", \"modified\": \"2024-08-23T06:22:15+00:00\", \"license\": \"https://data.abudhabi/opendata/addata_open_license\", \"licenselear\": \"https://data.abudhabi/opendata/node/6041?language=ar\", \"publisher\": { \"data\": { \"@type\": \"org:Organization\""; // Define the dataset available to the assistant
-  const MAX_HISTORY = 6; // Define the maximum number of messages to store in history
 
-  let SYSTEM_PROMPT = {
+  const MAX_HISTORY = 6; // Define the maximum number of messages to store in histor
+
+  let SYSTEM_PROMPT_LOCAL = {
+    role: "system",
+    content: `Your role as the Abu Dhabi Open Data Platform AI is as follows:\n\nQuery Evaluation and Refinement: When you receive a prompt, assess if it is a search query.\n\nIf the query is suitable as provided, repeat it exactly as is.\nIf the query could be refined, modify it to improve relevance and respond only with the refined keywords. Avoid unnecessary words such as \"data,\" \"dataset,\" or specific UAE city names, even if mentioned.\nRe-query Generation for Enhanced Relevance: If the user context suggests that previous results were unsatisfactory, generate a new query that better meets the user's needs based on the conversation context. Reply only with the new query.\n\nDataset Discussion: If the user is asking questions or discussing a dataset they retrieved without requesting new information, reply only with \"0\" to indicate no new query is required.\n\nImportant:\n\nFocus exclusively on keywords relevant to the user's intent, avoiding filler words.\nAim for keywords directly tied to the specific purpose (e.g., \"finance,\" \"public health,\" \"citizen well-being\"), keeping responses concise and to the point.`
+  };
+  const [systemPromptGlobal, setSystemPromptGlobal] = useState({
     role: "system",
     content: `You are the Abu Dhabi's open data platform AI assistant. You are helpful and friendly and you only respond to images that you receive and analyze or questions that you can help with in providing the best datasets from the open data platform. You are interactive to help the user get the best dataset he's searching for. You might receive an 
 image from the user without context, analyze it along with the data you have in case the user intent is some data based on that image. This is the data from the search engine you have: ${dataset}, You only return your response in this structure \"[[datasets_identifiers_separated_by_comma_each_in_a_list_you_only_put_the_first_identifier_of_each_dataset_in_case_you_wanted_to_return_more_than_one_dataset],your_response]\"`
-  };
+  });
+  // Update SYSTEM_PROMPT_GLOBAL whenever dataset changes
   
-  const handleSend = async () => {
-    if (input.trim()) {
-      // Create the user message with proper content structure (including type)
-      const userMessage = {
-        role: "user",
-        content: input.trim()
-      };
-  
-      // Retrieve chat history from local storage
-      let chatHistory = JSON.parse(localStorage.getItem("chatHistory") || "[]");
-  
-      // Append the user's input to chat history
-      chatHistory.push(userMessage);
-  
-      // Include the system prompt at the top of the chat history
-      const fullChat = [SYSTEM_PROMPT, ...chatHistory, userMessage];
-      setMessages((prev) => [...prev, { text: input, sender: 'user' }]);
-      setInput(''); // Clear input field
-  
-      try {
-        // Send the full chat (with system prompt) to the backend
-        const response = await fetch('/api/gpt', {
+  useEffect(() => {
+    // Make sure dataset is a string and use it directly
+    if (typeof dataset === 'string') {
+      setSystemPromptGlobal({
+        role: "system",
+    content: `You are the Abu Dhabi's open data platform AI assistant. You are helpful and friendly and you only respond to images that you receive and analyze or questions that you can help with in providing the best datasets from the open data platform. You are interactive to help the user get the best dataset he's searching for. You might receive an 
+image from the user without context, analyze it along with the data you have in case the user intent is some data based on that image. This is the data from the search engine you have: ${dataset}, You only return your response in this structure \"[[datasets_identifiers_separated_by_comma_each_in_a_list_you_only_put_the_first_identifier_of_each_dataset_in_case_you_wanted_to_return_more_than_one_dataset],your_response]\"`
+});
+} else {
+  console.error('Dataset is not a string:', dataset); // Handle unexpected types
+}
+}, [dataset]); // Only run when dataset changes
+
+const handleSend = async () => {
+  if (input.trim()) {
+    // Create the user message
+    const userMessage = {
+      role: 'user',
+      content: input.trim()
+    };
+
+    // Retrieve chat history from local storage
+    let chatHistory = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+
+    // Append user message to the chat history
+    chatHistory.push(userMessage);
+
+    try {
+      const localResponse = await fetch('/api/gpt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [SYSTEM_PROMPT_LOCAL, ...chatHistory] })
+      });
+
+      const localData = await localResponse.json();
+
+      const searchQuery = localData.choices?.[0]?.message?.content || '';
+      console.log('Search query generated from local system prompt:', searchQuery);
+
+      // Only proceed if searchQuery is not empty
+      if (searchQuery && searchQuery.trim() !== "0") {
+        // Call the AI search engine API
+        const searchEngineResponse = await fetch('/api/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: fullChat }),
+          body: JSON.stringify({ search: searchQuery })
         });
-  
-        const data = await response.json();
-        const botReply = data.choices?.[0]?.message?.content || "Sorry, I couldn't process that. Try again.";
-  
-        // Append the assistant's response to chat history
-        const botMessage = {
-          role: "assistant",
-          content: botReply
+
+        const searchData = await searchEngineResponse.json();
+        console.log('Search engine API response:', searchData);
+
+        const chunks = searchData?.value?.map((doc: any) => doc.chunk).join(' ') || '';
+        setDataset(chunks); // Update the dataset state with the new data
+
+        console.log('Dataset after setting:', chunks);
+
+        // Once dataset is updated, create the full system prompt
+        const updatedSystemPrompt = {
+          role: "system",
+          content: `You are the Abu Dhabi's open data platform AI assistant. You are helpful and friendly and you only respond to images that you receive and analyze or questions that you can help with in providing the best datasets from the open data platform. You are interactive to help the user get the best dataset he's searching for. You might receive an 
+image from the user without context, analyze it along with the data you have in case the user intent is some data based on that image. This is the data from the search engine you have: ${chunks}, You only return your response in this structure \"[[datasets_identifiers_separated_by_comma_each_in_a_list_you_only_put_the_first_identifier_of_each_dataset_in_case_you_wanted_to_return_more_than_one_dataset],your_response]\"` // Combine local and dataset
         };
-        chatHistory.push(userMessage, botMessage);
-if (chatHistory.length > MAX_HISTORY) {
-  chatHistory.shift();
-}
-localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
-        // Update the UI with the bot's response
+
+        // Now send the global prompt with the combined content
+        const fullChatGlobal = [...chatHistory];
+        const globalResponse = await fetch('/api/gpt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: [updatedSystemPrompt, ...fullChatGlobal] })
+        });
+
+        const globalData = await globalResponse.json();
+        console.log('Global system prompt API response:', globalData);
+
+        const botReply = globalData.choices?.[0]?.message?.content || "Sorry, I couldn't process that. Try again.";
+
+        chatHistory.push(userMessage, { role: 'assistant', content: botReply });
+
+        if (chatHistory.length > MAX_HISTORY) {
+          chatHistory.shift(); // Keep chat history within the max limit
+        }
+
+        localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+
         setMessages((prev) => [...prev, { text: botReply, sender: 'bot' }]);
-      } catch (error) {
-        // Handle errors gracefully
-        setMessages((prev) => [
-          ...prev,
-          { text: "There was an error connecting to the server. Please try again.", sender: 'bot' },
-        ]);
+      } else {
+        console.log('Search query is empty or invalid, skipping the search engine call.');
       }
+    } catch (error) {
+      console.error('Error occurred during the API calls:', error);
+      setMessages((prev) => [
+        ...prev,
+        { text: 'There was an error connecting to the server. Please try again.', sender: 'bot' }
+      ]);
     }
-  };
-  
-  
-  
+
+    // Clear the input field after sending
+    setInput('');
+  }
+};
 
   return (
     <section className="py-24 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
