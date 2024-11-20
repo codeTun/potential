@@ -111,7 +111,9 @@ export function PotentialSection() {
         ]);
         setInput(""); // Clear input field
   
-        // Proceed if searchQuery is valid and not "0"
+        let chunks = ""; // Initialize chunks as an empty string
+  
+        // Proceed with search query only if valid and not "0"
         if (searchQuery && searchQuery !== "0") {
           // Call the AI search engine API
           const searchEngineResponse = await fetch("/api/search", {
@@ -121,81 +123,70 @@ export function PotentialSection() {
           });
   
           const searchData = await searchEngineResponse.json();
-          const chunks =
+          chunks =
             searchData?.value
               ?.map((doc: { chunk: string }) => doc.chunk)
-              .join(" ") || "";
-  
-          setDataset(chunks); // Update dataset state
-
+              .join(" ") || ""; // Update chunks based on search results
+        }
           // Create the global system prompt
           const SYSTEM_PROMPT_GLOBAL = {
             role: "system",
             content: `You are the Abu Dhabi's open data platform AI assistant. You are helpful and friendly, and you provide the best datasets from the open data platform based on user queries. This is the data from the search engine you have: ${chunks}. You only return your response in this structure "[[datasets_identifiers_separated_by_comma_each_in_a_list_you_only_put_the_first_identifier_of_each_dataset_in_case_you_wanted_to_return_more_than_one_dataset],your_response]"`,
           };
 
-           // Second GPT API call to generate the assistant's reply
-        const globalResponse = await fetch("/api/gpt", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: [SYSTEM_PROMPT_GLOBAL, ...chatHistory],
-          }),
-        });
+          // Second GPT API call to generate the assistant's reply
+      const globalResponse = await fetch("/api/gpt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [SYSTEM_PROMPT_GLOBAL, ...chatHistory],
+        }),
+      });
 
-        const globalData = await globalResponse.json();
-        const gptMessage = globalData.choices?.[0]?.message?.content || "";
+      const globalData = await globalResponse.json();
+      const gptMessage = globalData.choices?.[0]?.message?.content || "";
 
-        // Correct parsing of GPT response to extract IDs and response content
-        let datasetIdentifiers = [];
-        let gptResponse = "";
+      let datasetIdentifiers = [];
+      let gptResponse = "";
 
-        try {
-          // Check if the response is in a valid array format
-          const parsedResponse = JSON.parse(gptMessage);
+      // Try to parse the GPT response as JSON
+      try {
+        const parsedResponse = JSON.parse(gptMessage);
 
-          if (Array.isArray(parsedResponse) && parsedResponse.length === 2) {
-            datasetIdentifiers = parsedResponse[0]; // Dataset IDs
-            gptResponse = parsedResponse[1]; // Assistant's response content
-          } else {
-            throw new Error("Response is not in the expected format.");
-          }
-        } catch (error) {
-          console.error("Error parsing GPT response:", error);
-          gptResponse = "There was an issue processing the response.";
-        }
-
-        // Store the dataset identifiers for later use
-        setSearchResultsIdentifiers(datasetIdentifiers);
-
-        // Append assistant's reply to chat history
-        chatHistory.push({ role: "assistant", content: gptResponse });
-
-        // Limit chat history to MAX_HISTORY
-        if (chatHistory.length > MAX_HISTORY) {
-          chatHistory.shift();
-        }
-
-        localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
-
-        // Update UI with assistant's reply
-        if (gptResponse.trim()) {
-          setMessages((prev) => [
-            ...prev,
-            { text: gptResponse.trim(), sender: "bot" },
-          ]);
+        // If it's a valid JSON array with 2 items, we proceed
+        if (Array.isArray(parsedResponse) && parsedResponse.length === 2) {
+          datasetIdentifiers = parsedResponse[0]; // Dataset IDs
+          gptResponse = parsedResponse[1]; // Assistant's response content
         } else {
-          console.error("Received empty response from GPT.");
+          throw new Error("Response is not in the expected format.");
         }
-      } else {
-        // If search query is "0" or invalid, handle accordingly
+      } catch (error) {
+        // If parsing fails, treat it as plain text
+        console.error("Error parsing GPT response:", error);
+        gptResponse = gptMessage; // Fallback to raw GPT message if not JSON
+      }
+
+      // Store the dataset identifiers for later use
+      setSearchResultsIdentifiers(datasetIdentifiers);
+
+      // Append assistant's reply to chat history
+      chatHistory.push({ role: "assistant", content: gptResponse });
+
+      // Limit chat history to MAX_HISTORY
+      if (chatHistory.length > MAX_HISTORY) {
+        chatHistory.shift();
+      }
+
+      localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
+
+      // Update UI with assistant's reply
+      if (gptResponse.trim()) {
         setMessages((prev) => [
           ...prev,
-          {
-            text: "How else can I assist you with Abu Dhabi open data?",
-            sender: "bot",
-          },
+          { text: gptResponse.trim(), sender: "bot" },
         ]);
+      } else {
+        console.error("Received empty response from GPT.");
       }
     } catch (error) {
       console.error("Error occurred during the API calls:", error);
