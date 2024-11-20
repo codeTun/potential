@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     console.log("Chat history:", chatHistory);
 
     const combinedMessages = [...chatHistory, ...messages];
-    combinedMessages.unshift(SYSTEM_PROMPT); // Add the system prompt at the beginning
+    combinedMessages.unshift(SYSTEM_PROMPT);
     console.log("Combined messages:", JSON.stringify(combinedMessages, null, 2));
 
     // Use environment variables for API key and endpoint
@@ -70,7 +70,6 @@ export async function POST(request: Request) {
       headers: { "Content-Type": "application/json" },
     });
   } catch (error: unknown) {
-    // Detailed error handling with more context
     const errorMessage =
       axios.isAxiosError(error) && error.response
         ? error.response.data
@@ -78,7 +77,6 @@ export async function POST(request: Request) {
 
     console.error("Error occurred:", errorMessage);
 
-    // Return a detailed error message to the client
     return new Response(
       JSON.stringify({
         message: `Error: ${errorMessage}`,
