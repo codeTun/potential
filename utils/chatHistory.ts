@@ -5,7 +5,7 @@ const MAX_HISTORY = 6;
  * Retrieve chat history from localStorage.
  * The system prompt is not included in the stored history.
  */
-export const getChatHistory = (): any[] => {
+export const getChatHistory = (): { message: string; timestamp: number }[] => {
   if (typeof window === "undefined") return [];
   const history = localStorage.getItem(CHAT_HISTORY_KEY);
   return history ? JSON.parse(history) : [];
@@ -15,7 +15,7 @@ export const getChatHistory = (): any[] => {
  * Save a new chat message to localStorage.
  * Maintains a maximum of 6 chat history items.
  */
-export const saveChatToHistory = (chat: any): void => {
+export const saveChatToHistory = (chat: { message: string; timestamp: number }): void => {
   if (typeof window === "undefined") return;
 
   const history = getChatHistory();

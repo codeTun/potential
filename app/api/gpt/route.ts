@@ -1,15 +1,23 @@
 import axios from "axios";
 import { getChatHistory, saveChatToHistory } from "@/utils/chatHistory";
-import dotenv from "dotenv";
 
-dotenv.config();
+interface Message {
+  role: string;
+  content: string;
+}
 
-const SYSTEM_PROMPT = {
+interface SavedMessage {
+  message: string;
+  timestamp: number;
+}
+
+const SYSTEM_PROMPT: Message = {
   role: "system",
-  content: "You are a helpful assistant. Please answer the user's queries accurately and concisely.",
+  content:
+    "You are a helpful assistant. Please answer the user's queries accurately and concisely.",
 };
 
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
   try {
     // Parse the incoming JSON body
     const requestBody = await request.json();
@@ -26,19 +34,27 @@ export async function POST(request: Request) {
     }
 
     // Fetch chat history and merge with new messages
-    const chatHistory = getChatHistory();
+    const chatHistory: Message[] = getChatHistory().map((savedMessage) => ({
+      role: "user",
+      content: savedMessage.message,
+    }));
     console.log("Chat history:", chatHistory);
 
-    const combinedMessages = [...chatHistory, ...messages];
+    const combinedMessages: Message[] = [...chatHistory, ...messages];
     combinedMessages.unshift(SYSTEM_PROMPT);
-    console.log("Combined messages:", JSON.stringify(combinedMessages, null, 2));
+    console.log(
+      "Combined messages:",
+      JSON.stringify(combinedMessages, null, 2)
+    );
 
     // Use environment variables for API key and endpoint
     const apiKey = process.env.GPT_API_KEY;
     const endpoint = process.env.GPT_API;
 
     if (!apiKey || !endpoint) {
-      throw new Error("API key or endpoint is missing in the environment variables");
+      throw new Error(
+        "API key or endpoint is missing in the environment variables"
+      );
     }
 
     // Make the API request to GPT
@@ -60,16 +76,23 @@ export async function POST(request: Request) {
 
     console.log("GPT API response:", response.data);
 
-    // Save the latest user message to history (exclude system prompt)
-    saveChatToHistory(messages);
-    console.log("Chat history saved after message:", messages);
+    // Save the latest user message to history
+    const latestMessage = messages[messages.length - 1];
+    if (latestMessage && latestMessage.role === "user") {
+      const messageToSave: SavedMessage = {
+        message: latestMessage.content,
+        timestamp: Date.now(),
+      };
+      saveChatToHistory(messageToSave);
+      console.log("Chat history saved after message:", messageToSave);
+    }
 
     // Return GPT response
     return new Response(JSON.stringify(response.data), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  } catch (error: unknown) {
+  } catch (error) {
     const errorMessage =
       axios.isAxiosError(error) && error.response
         ? error.response.data
