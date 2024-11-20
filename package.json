@@ -9,12 +9,16 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@radix-ui/react-scroll-area": "^1.2.1",
     "@radix-ui/react-slot": "^1.1.0",
     "axios": "^1.7.7",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "dotenv": "^16.4.5",
+    "framer-motion": "^11.11.17",
     "lucide-react": "^0.456.0",
     "next": "15.0.3",
+    "openai": "^4.72.0",
     "potential": "file:",
     "react": "19.0.0-rc-66855b96-20241106",
     "react-dom": "19.0.0-rc-66855b96-20241106",
