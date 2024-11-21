@@ -3513,6 +3513,7 @@ snapshots:
       axios: 1.7.7
       class-variance-authority: 0.7.0
       clsx: 2.1.1
+      dotenv: 16.4.5
       framer-motion: 11.11.17(react-dom@19.0.0-rc-66855b96-20241106(react@19.0.0-rc-66855b96-20241106))(react@19.0.0-rc-66855b96-20241106)
       lucide-react: 0.456.0(react@19.0.0-rc-66855b96-20241106)
       next: 15.0.3(react-dom@19.0.0-rc-66855b96-20241106(react@19.0.0-rc-66855b96-20241106))(react@19.0.0-rc-66855b96-20241106)
