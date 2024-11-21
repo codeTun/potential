@@ -1,5 +1,5 @@
-// FILE: components/hero-section.tsx
 "use client";
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,10 @@ import { Sparkles, Search, Menu } from "lucide-react";
 
 export function HeroSectionComponent({
   onSearch,
+  onQueryChange,
 }: {
   onSearch: (query: string) => void;
+  onQueryChange?: (query: string) => void;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -16,20 +18,21 @@ export function HeroSectionComponent({
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch(searchQuery);
-    setSearchQuery(""); // Reset the search query input
+    setSearchQuery(""); // Reset the search input
+    onQueryChange?.(""); // Notify parent about reset
   };
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY });
     };
-
     window.addEventListener("mousemove", handleMouseMove);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-    };
+    return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
+
+  useEffect(() => {
+    onQueryChange?.(searchQuery); // Notify parent of query change
+  }, [searchQuery, onQueryChange]);
 
   return (
     <div className="bg-gradient-to-br from-blue-900 to-blue-700 min-h-screen text-white overflow-hidden relative">
@@ -100,7 +103,7 @@ export function HeroSectionComponent({
                 placeholder="Search for opportunities..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-grow bg-transparent border-none pl-6 pr-4 py-3 text-lg focus:ring-0 focus:outline-none focus-visible:outline-none placeholder-white/70 text-black rounded-l-full"
+                className="flex-grow bg-transparent border-none pl-6 pr-4 py-3 text-lg focus:ring-0 focus:outline-none placeholder-white/70 text-black rounded-l-full"
                 style={{
                   minWidth: "350px",
                   maxHeight: "150px",

@@ -14,7 +14,7 @@ interface SavedMessage {
 const SYSTEM_PROMPT: Message = {
   role: "system",
   content:
-    "You are a helpful assistant. Please answer the user's queries accurately and concisely.",
+    "respect the response instruction",
 };
 
 export async function POST(request: Request): Promise<Response> {
