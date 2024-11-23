@@ -28,8 +28,11 @@ export default function Home() {
   return (
     <>
       <HeroSectionComponent onSearch={handleSearch} />
-      <PotentialSection externalQuery={searchQuery} onDatasetsChange={handlePotentialDatasets} />
       {datasets.length > 0 && <SearchResultsComponent datasets={datasets} />}
+      <PotentialSection
+        externalQuery={searchQuery}
+        onDatasetsChange={handlePotentialDatasets}
+      />
       <Footer />
     </>
   );
