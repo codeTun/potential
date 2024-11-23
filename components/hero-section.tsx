@@ -5,21 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sparkles, Search, Menu } from "lucide-react";
 
+interface HeroSectionComponentProps {
+  onSearch: (query: string) => void;
+  onQueryChange?: (query: string) => void;
+}
+
 export function HeroSectionComponent({
   onSearch,
   onQueryChange,
-}: {
-  onSearch: (query: string) => void;
-  onQueryChange?: (query: string) => void;
-}) {
+}: HeroSectionComponentProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch(searchQuery);
-    setSearchQuery(""); // Reset the search input
-    onQueryChange?.(""); // Notify parent about reset
+    setSearchQuery("");
+    onQueryChange?.("");
   };
 
   useEffect(() => {
@@ -31,21 +33,11 @@ export function HeroSectionComponent({
   }, []);
 
   useEffect(() => {
-    onQueryChange?.(searchQuery); // Notify parent of query change
+    onQueryChange?.(searchQuery);
   }, [searchQuery, onQueryChange]);
 
   return (
     <div className="bg-gradient-to-br from-blue-900 to-blue-700 min-h-screen text-white overflow-hidden relative">
-      {/* Animated background shapes */}
-      <div className="absolute inset-0 overflow-hidden">
-        <svg
-          className="absolute top-0 left-0 w-full h-full"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          {/* SVG content */}
-        </svg>
-      </div>
-
       {/* Interactive glow effect */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -54,7 +46,6 @@ export function HeroSectionComponent({
           transition: "background 0.3s ease",
         }}
       />
-
       <nav className="container mx-auto px-4 py-6 relative z-10">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-4">
@@ -77,7 +68,7 @@ export function HeroSectionComponent({
               Contact
             </a>
           </div>
-          <Button variant={"ghost"} size="icon" className="md:hidden">
+          <Button variant="ghost" size="icon" className="md:hidden">
             <Menu className="h-6 w-6" />
           </Button>
         </div>
@@ -103,12 +94,8 @@ export function HeroSectionComponent({
                 placeholder="Search for opportunities..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-grow bg-transparent border-none pl-6 pr-4 py-3 text-lg focus:ring-0 focus:outline-none placeholder-white/70 text-black rounded-l-full"
-                style={{
-                  minWidth: "350px",
-                  maxHeight: "150px",
-                  outline: "none",
-                }}
+                className="flex-grow bg-transparent border-none pl-6 pr-4 py-3 text-lg focus:ring-0 focus:outline-none placeholder-gray-500 text-black rounded-l-full"
+                style={{ minWidth: "350px", maxHeight: "150px" }}
               />
               <Button
                 type="submit"

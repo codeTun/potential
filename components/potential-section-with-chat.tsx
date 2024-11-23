@@ -7,82 +7,67 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageCircle, Zap, Target, X, Send } from "lucide-react";
 
+interface Message {
+  text: string;
+  sender: "user" | "bot";
+}
+
+interface PotentialSectionProps {
+  externalQuery: string;
+  onDatasetsChange: (identifiers: string[]) => void;
+}
+
 export function PotentialSection({
   externalQuery,
   onDatasetsChange,
-}: {
-  externalQuery: string;
-  onDatasetsChange: (identifiers: string[]) => void;
-}) {
-  const [isVisible, setIsVisible] = useState(false);
+}: PotentialSectionProps) {
+  const [isVisible] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [messages, setMessages] = useState<
-    {
-      text: string;
-      sender: "user" | "bot";
-    }[]
-  >([
+  const [messages, setMessages] = useState<Message[]>([
     {
       text: "Hello! I'm your Abu Dhabi Open Data AI assistant. How can I help you today?",
       sender: "bot",
     },
   ]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(externalQuery || "");
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchResultsIdentifiers, setSearchResultsIdentifiers] = useState<
     string[]
   >([]);
 
-  useEffect(() => {
-    if (onDatasetsChange && searchResultsIdentifiers.length > 0) {
-      onDatasetsChange(searchResultsIdentifiers);
-    }
-  }, [searchResultsIdentifiers, onDatasetsChange]);
-
-  const containerVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { delayChildren: 0.3, staggerChildren: 0.2 },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1 },
-  };
-
   const MAX_HISTORY = 6;
 
   useEffect(() => {
-    if (typeof externalQuery === "string" && externalQuery.trim()) {
-      setInput(externalQuery);
+    if (externalQuery.trim()) {
       setIsChatOpen(true);
+      handleSend(externalQuery);
     }
   }, [externalQuery]);
 
   useEffect(() => {
-    if (input.trim() && !isProcessing) {
-      handleSend();
+    if (searchResultsIdentifiers.length > 0) {
+      onDatasetsChange(searchResultsIdentifiers);
     }
-  }, [input]);
+  }, [searchResultsIdentifiers, onDatasetsChange]);
 
-  const handleSend = async () => {
-    if (input.trim() && !isProcessing) {
+  const handleSend = async (messageText: string) => {
+    if (messageText.trim() && !isProcessing) {
       setIsProcessing(true);
-      const userMessage = { role: "user", content: input.trim() };
+      setMessages((prev) => [
+        ...prev,
+        { text: messageText.trim(), sender: "user" },
+      ]);
+      setInput("");
 
-      const chatHistory = JSON.parse(
-        localStorage.getItem("chatHistory") || "[]"
-      );
-      chatHistory.push(userMessage);
+      let chatHistory = JSON.parse(localStorage.getItem("chatHistory") || "[]");
+      chatHistory.push({ role: "user", content: messageText.trim() });
 
       if (chatHistory.length > MAX_HISTORY) {
-        chatHistory.shift();
+        chatHistory = chatHistory.slice(-MAX_HISTORY);
       }
 
       try {
+        // First API Call
         const localResponse = await fetch("/api/gpt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -99,16 +84,11 @@ export function PotentialSection({
 
         const localData = await localResponse.json();
         const searchQuery = localData.choices?.[0]?.message?.content?.trim();
-        console.log("First API result (local system prompt):", localData);
-        setMessages((prev) => [
-          ...prev,
-          { text: input.trim(), sender: "user" },
-        ]);
-        setInput("");
 
         let chunks = "";
 
         if (searchQuery && searchQuery !== "0") {
+          // Search API Call
           const searchEngineResponse = await fetch("/api/search", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -122,6 +102,7 @@ export function PotentialSection({
               .join(" ") || "";
         }
 
+        // Second API Call
         const SYSTEM_PROMPT_GLOBAL = {
           role: "system",
           content: `You are the Abu Dhabi's open data platform AI assistant. You are helpful and friendly, and you provide the best datasets from the open data platform based on user queries. This is the data from the search engine you have: ${chunks}. You only return your response in this structure and make it parse friendly"[[datasets_identifiers_separated_by_comma_each_in_a_list_you_only_put_the_first_identifier_of_each_dataset_in_case_you_wanted_to_return_more_than_one_dataset],your_response]" please do not forget your response structure if you do not find an identifier leave its array empty do not make out responses from your head example "[["8cbaa2c9-2a85-434e-bfc7-6a994b6eaa3d","8cbaa2c9-2a85-434e-bfc7-6a994b6eaa3d"],"we have this kind of dataset and explain it"]" these IDs are just an example for you to understand do not include it in your response`,
@@ -138,7 +119,7 @@ export function PotentialSection({
         const globalData = await globalResponse.json();
         const gptMessage = globalData.choices?.[0]?.message?.content || "";
 
-        let datasetIdentifiers = [];
+        let datasetIdentifiers: string[] = [];
         let gptResponse = "";
 
         try {
@@ -148,23 +129,17 @@ export function PotentialSection({
             datasetIdentifiers = parsedResponse[0];
             gptResponse = parsedResponse[1];
           } else {
-            throw new Error("Response is not in the expected format.");
+            throw new Error("Invalid response format");
           }
-        } catch (error) {
-          console.error("Error parsing GPT response:", error);
+        } catch {
           gptResponse = gptMessage;
         }
 
-        setSearchResultsIdentifiers(
-          datasetIdentifiers.map((id: any) => String(id))
-        );
-        // console.log("Extracted dataset identifiers:", datasetIdentifiers);
         setSearchResultsIdentifiers(datasetIdentifiers);
-
         chatHistory.push({ role: "assistant", content: gptResponse });
 
         if (chatHistory.length > MAX_HISTORY) {
-          chatHistory.shift();
+          chatHistory = chatHistory.slice(-MAX_HISTORY);
         }
 
         localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
@@ -174,11 +149,8 @@ export function PotentialSection({
             ...prev,
             { text: gptResponse.trim(), sender: "bot" },
           ]);
-        } else {
-          console.error("Received empty response from GPT.");
         }
-      } catch (error) {
-        console.error("Error occurred during the API calls:", error);
+      } catch {
         setMessages((prev) => [
           ...prev,
           {
@@ -190,6 +162,11 @@ export function PotentialSection({
         setIsProcessing(false);
       }
     }
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSend(input);
   };
 
   return (
@@ -212,11 +189,24 @@ export function PotentialSection({
 
         <motion.div
           className="grid md:grid-cols-3 gap-8"
-          variants={containerVariants}
           initial="hidden"
           animate={isVisible ? "visible" : "hidden"}
+          variants={{
+            hidden: { opacity: 0, y: 20 },
+            visible: {
+              opacity: 1,
+              y: 0,
+              transition: { delayChildren: 0.3, staggerChildren: 0.2 },
+            },
+          }}
         >
-          <motion.div variants={itemVariants}>
+          {/* Cards */}
+          <motion.div
+            variants={{
+              hidden: { y: 20, opacity: 0 },
+              visible: { y: 0, opacity: 1 },
+            }}
+          >
             <Card className="h-full transform hover:scale-105 transition-transform duration-300">
               <CardContent className="p-6 flex flex-col items-center text-center">
                 <div className="bg-blue-100 p-4 rounded-full mb-4">
@@ -233,7 +223,12 @@ export function PotentialSection({
             </Card>
           </motion.div>
 
-          <motion.div variants={itemVariants}>
+          <motion.div
+            variants={{
+              hidden: { y: 20, opacity: 0 },
+              visible: { y: 0, opacity: 1 },
+            }}
+          >
             <Card className="h-full transform hover:scale-105 transition-transform duration-300">
               <CardContent className="p-6 flex flex-col items-center text-center">
                 <div className="bg-green-100 p-4 rounded-full mb-4">
@@ -247,7 +242,12 @@ export function PotentialSection({
             </Card>
           </motion.div>
 
-          <motion.div variants={itemVariants}>
+          <motion.div
+            variants={{
+              hidden: { y: 20, opacity: 0 },
+              visible: { y: 0, opacity: 1 },
+            }}
+          >
             <Card className="h-full transform hover:scale-105 transition-transform duration-300">
               <CardContent className="p-6 flex flex-col items-center text-center">
                 <div className="bg-red-100 p-4 rounded-full mb-4">
@@ -264,90 +264,115 @@ export function PotentialSection({
           </motion.div>
         </motion.div>
 
-        {isChatOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-5 right-5 z-50 w-96 bg-white rounded-lg shadow-2xl overflow-hidden"
-          >
-            <div className="bg-blue-500 text-white p-4 flex justify-between items-center">
-              <h3 className="font-semibold">Potential Assistant</h3>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsChatOpen(false)}
-                className="text-white hover:bg-blue-600"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <ScrollArea className="h-[400px] p-4">
-              <div className="space-y-4">
-                {messages.map((msg, idx) => (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className={`flex ${
-                      msg.sender === "user" ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    <div
-                      className={`${
-                        msg.sender === "user"
-                          ? "bg-blue-500 text-white"
-                          : "bg-gray-200 text-gray-800"
-                      } p-3 rounded-lg max-w-[80%] shadow`}
-                    >
-                      {msg.text}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </ScrollArea>
-            <div className="p-4 bg-gray-50">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSend();
-                }}
-                className="flex items-center space-x-2"
-              >
-                <Input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Type your message..."
-                  className="flex-1"
-                />
-                <Button
-                  type="submit"
-                  disabled={isProcessing || !input.trim()}
-                  className="bg-blue-500 text-white hover:bg-blue-600"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </form>
-            </div>
-          </motion.div>
-        )}
-
-        {!isChatOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="fixed bottom-5 right-5 z-50"
-          >
-            <Button
-              onClick={() => setIsChatOpen(true)}
-              className="bg-blue-500 text-white hover:bg-blue-600 rounded-full p-4 shadow-lg"
-            >
-              <MessageCircle className="h-6 w-6" />
-            </Button>
-          </motion.div>
+        {isChatOpen ? (
+          <ChatWindow
+            messages={messages}
+            input={input}
+            isProcessing={isProcessing}
+            onClose={() => setIsChatOpen(false)}
+            onInputChange={(e) => setInput(e.target.value)}
+            onFormSubmit={handleFormSubmit}
+          />
+        ) : (
+          <ChatToggleButton onClick={() => setIsChatOpen(true)} />
         )}
       </div>
     </section>
+  );
+}
+
+function ChatWindow({
+  messages,
+  input,
+  isProcessing,
+  onClose,
+  onInputChange,
+  onFormSubmit,
+}: {
+  messages: Message[];
+  input: string;
+  isProcessing: boolean;
+  onClose: () => void;
+  onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFormSubmit: (e: React.FormEvent) => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 50 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 50 }}
+      className="fixed bottom-5 right-5 z-50 w-96 bg-white rounded-lg shadow-2xl overflow-hidden"
+    >
+      <div className="bg-blue-500 text-white p-4 flex justify-between items-center">
+        <h3 className="font-semibold">Potential Assistant</h3>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          className="text-white hover:bg-blue-600"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+      <ScrollArea className="h-[400px] p-4">
+        <div className="space-y-4">
+          {messages.map((msg, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.1 }}
+              className={`flex ${
+                msg.sender === "user" ? "justify-end" : "justify-start"
+              }`}
+            >
+              <div
+                className={`${
+                  msg.sender === "user"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-200 text-gray-800"
+                } p-3 rounded-lg max-w-[80%] shadow`}
+              >
+                {msg.text}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </ScrollArea>
+      <div className="p-4 bg-gray-50">
+        <form onSubmit={onFormSubmit} className="flex items-center space-x-2">
+          <Input
+            value={input}
+            onChange={onInputChange}
+            placeholder="Type your message..."
+            className="flex-1"
+          />
+          <Button
+            type="submit"
+            disabled={isProcessing || !input.trim()}
+            className="bg-blue-500 text-white hover:bg-blue-600"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </form>
+      </div>
+    </motion.div>
+  );
+}
+
+function ChatToggleButton({ onClick }: { onClick: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="fixed bottom-5 right-5 z-50"
+    >
+      <Button
+        onClick={onClick}
+        className="bg-blue-500 text-white hover:bg-blue-600 rounded-full p-4 shadow-lg"
+      >
+        <MessageCircle className="h-6 w-6" />
+      </Button>
+    </motion.div>
   );
 }
