@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
-import { Bar, Line, Scatter } from 'react-chartjs-2'; // Example using Chart.js
-import Papa from 'papaparse'; // Import PapaParse for CSV parsing
-import * as XLSX from 'xlsx'; // Import xlsx library for parsing XLSX files
+import { Bar, Line, Scatter } from "react-chartjs-2"; // Example using Chart.js
+import * as XLSX from "xlsx"; // Import xlsx library for parsing XLSX files
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -37,7 +36,9 @@ export function SearchResultsComponent({
 }: SearchResultsComponentProps) {
   const [datasetDetails, setDatasetDetails] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [selectedVisualization, setSelectedVisualization] = useState<string | null>(null); // Store selected visualization type
+  const [selectedVisualization, setSelectedVisualization] = useState<
+    string | null
+  >(null); // Store selected visualization type
   const [chartData, setChartData] = useState<any>(null); // Store chart data
   const [fileData, setFileData] = useState<any>(null); // Store parsed file data for XLSX uploads
 
@@ -76,13 +77,19 @@ export function SearchResultsComponent({
   }, [datasets]);
 
   // Handler for selecting the visualization type
-  const handleVisualizationSelect = async (type: string, datasetId: string, downloadURL: string | null) => {
+  const handleVisualizationSelect = async (
+    type: string,
+    datasetId: string,
+    downloadURL: string | null
+  ) => {
     setSelectedVisualization(type);
 
     if (downloadURL) {
       try {
         // Fetch the XLSX file
-        const response = await axios.get(downloadURL, { responseType: 'arraybuffer' });
+        const response = await axios.get(downloadURL, {
+          responseType: "arraybuffer",
+        });
         const data = new Uint8Array(response.data);
         const workbook = XLSX.read(data, { type: "array" });
 
@@ -103,14 +110,47 @@ export function SearchResultsComponent({
 
   // Function to generate chart data
   const generateChartData = (type: string, data: any) => {
-    const labels = Object.keys(data[0] || {}).filter(key => typeof data[0][key] === "string"); // Column headers as labels
-    const datasets = labels.map(label => {
-      const values = data.map((row: any) => row[label] || 0);
+    // Extract all keys (columns) from the data
+    const keys = Object.keys(data[0]);
+
+    // Ensure there are enough keys to plot
+    if (keys.length < 2) {
+      setError("Dataset does not have enough data to generate a chart.");
+      return null;
+    }
+
+    // Use the first key as labels (e.g., x-axis values)
+    const labelKey = keys[0];
+    const labels = data.map((row: any) => row[labelKey]);
+
+    // The rest of the keys are used as datasets
+    const dataKeys = keys.slice(1);
+
+    // Define colors for the datasets
+    const colors = [
+      {
+        backgroundColor: "rgba(255,99,132,0.2)",
+        borderColor: "rgba(255,99,132,1)",
+      },
+      {
+        backgroundColor: "rgba(54,162,235,0.2)",
+        borderColor: "rgba(54,162,235,1)",
+      },
+      {
+        backgroundColor: "rgba(255,206,86,0.2)",
+        borderColor: "rgba(255,206,86,1)",
+      },
+      // Add more colors if you have more datasets
+    ];
+
+    // Create datasets for the chart
+    const datasets = dataKeys.map((key, index) => {
+      const values = data.map((row: any) => Number(row[key]) || 0);
       return {
-        label,
+        label: key,
         data: values,
-        backgroundColor: "rgba(75, 192, 192, 0.2)",
-        borderColor: "rgba(75, 192, 192, 1)",
+        backgroundColor: colors[index % colors.length].backgroundColor,
+        borderColor: colors[index % colors.length].borderColor,
         borderWidth: 1,
       };
     });
@@ -224,7 +264,11 @@ export function SearchResultsComponent({
                     </div>
                     <div
                       onClick={() =>
-                        handleVisualizationSelect("line", datasetId, downloadURL)
+                        handleVisualizationSelect(
+                          "line",
+                          datasetId,
+                          downloadURL
+                        )
                       }
                       className="px-4 py-2 text-sm cursor-pointer hover:bg-gray-100"
                     >
@@ -232,7 +276,11 @@ export function SearchResultsComponent({
                     </div>
                     <div
                       onClick={() =>
-                        handleVisualizationSelect("scatter", datasetId, downloadURL)
+                        handleVisualizationSelect(
+                          "scatter",
+                          datasetId,
+                          downloadURL
+                        )
                       }
                       className="px-4 py-2 text-sm cursor-pointer hover:bg-gray-100"
                     >
