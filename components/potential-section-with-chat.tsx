@@ -94,12 +94,30 @@ export function PotentialSection({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ search: searchQuery }),
           });
-
+        
           const searchData = await searchEngineResponse.json();
-          chunks =
-            searchData?.value
-              ?.map((doc: { chunk: string }) => doc.chunk)
-              .join(" ") || "";
+        
+          // Iterate through the 'value' array and extract all values
+          chunks = searchData?.value
+            ?.map((doc: any) => {
+              const values = [];
+              (function extractValues(obj) {
+                if (typeof obj === "object" && obj !== null) {
+                  if (Array.isArray(obj)) {
+                    obj.forEach((item) => extractValues(item));
+                  } else {
+                    for (const key in obj) {
+                      extractValues(obj[key]);
+                    }
+                  }
+                } else if (typeof obj === "string" || typeof obj === "number") {
+                  values.push(obj);
+                }
+              })(doc);
+        
+              return values.join(" ");
+            })
+            .join(" ") || "";
         }
 
         // Second API Call
