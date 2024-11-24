@@ -1,4 +1,3 @@
-// FILE: app/api/search/route.ts
 import axios from "axios";
 
 const API_KEY = process.env.SEARCH_AI_API_KEY;
@@ -40,8 +39,13 @@ export async function POST(request: Request) {
       }
     );
 
+    // Ensure the response is in the expected structure
+    const transformedResponse = {
+      value: response.data.results || response.data.value || [],
+    };
+
     // Return successful response
-    return new Response(JSON.stringify(response.data), {
+    return new Response(JSON.stringify(transformedResponse), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

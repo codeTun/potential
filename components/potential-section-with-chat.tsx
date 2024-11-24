@@ -65,7 +65,6 @@ export function PotentialSection({
       if (chatHistory.length > MAX_HISTORY) {
         chatHistory = chatHistory.slice(-MAX_HISTORY);
       }
-
       try {
         // First API Call
         const localResponse = await fetch("/api/gpt", {
@@ -94,14 +93,32 @@ export function PotentialSection({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ search: searchQuery }),
           });
-
+        
           const searchData = await searchEngineResponse.json();
-          chunks =
-            searchData?.value
-              ?.map((doc: { chunk: string }) => doc.chunk)
-              .join(" ") || "";
+        
+          // Iterate through the 'value' array and extract all values
+          chunks = searchData?.value
+            ?.map((doc: any) => {
+              let values = [];
+              (function extractValues(obj) {
+                if (typeof obj === "object" && obj !== null) {
+                  if (Array.isArray(obj)) {
+                    obj.forEach((item) => extractValues(item));
+                  } else {
+                    for (const key in obj) {
+                      extractValues(obj[key]);
+                    }
+                  }
+                } else if (typeof obj === "string" || typeof obj === "number") {
+                  values.push(obj);
+                }
+              })(doc);
+        
+              return values.join(" ");
+            })
+            .join(" ") || "";
         }
-
+        
         // Second API Call
         const SYSTEM_PROMPT_GLOBAL = {
           role: "system",
