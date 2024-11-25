@@ -1,31 +1,8 @@
 import { useState, useEffect } from "react";
+import Papa from "papaparse";
 import axios from "axios";
 import { motion } from "framer-motion";
-import { Bar, Line, Scatter } from "react-chartjs-2"; // Example using Chart.js
-import * as XLSX from "xlsx"; // Import xlsx library for parsing XLSX files
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  PointElement,
-  LineElement,
-} from "chart.js";
-
-// Register the necessary Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  PointElement,
-  LineElement
-);
+import * as XLSX from "xlsx";
 
 interface SearchResultsComponentProps {
   datasets: string[];
@@ -37,10 +14,11 @@ export function SearchResultsComponent({
   const [datasetDetails, setDatasetDetails] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedVisualization, setSelectedVisualization] = useState<
-    string | null
-  >(null); // Store selected visualization type
-  const [chartData, setChartData] = useState<any>(null); // Store chart data
-  const [fileData, setFileData] = useState<any>(null); // Store parsed file data for XLSX uploads
+    "Table" | "Bar" | "Line" | null
+  >(null);
+  const [fileData, setFileData] = useState<any>(null);
+  const [hoveredDatasetId, setHoveredDatasetId] = useState<string | null>(null);
+  const [hoveredButtonId, setHoveredButtonId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDatasetDetails = async () => {
@@ -64,7 +42,7 @@ export function SearchResultsComponent({
           const downloadURL =
             dataset?.distribution?.[0]?.data?.downloadURL ?? null;
 
-          return { ...dataset, datasetId, downloadURL }; // Include downloadURL
+          return { ...dataset, datasetId, downloadURL }; 
         });
 
         setDatasetDetails(datasetsFetched);
@@ -76,103 +54,69 @@ export function SearchResultsComponent({
     fetchDatasetDetails();
   }, [datasets]);
 
-  // Handler for selecting the visualization type
   const handleVisualizationSelect = async (
-    type: string,
-    datasetId: string,
-    downloadURL: string | null
-  ) => {
+      type: "Table" | "Bar" | "Line",
+      datasetId: string,
+      downloadURL: string | null
+    ) => {
     setSelectedVisualization(type);
 
     if (downloadURL) {
       try {
-        // Fetch the XLSX file
-        const response = await axios.get(downloadURL, {
-          responseType: "arraybuffer",
-        });
-        const data = new Uint8Array(response.data);
-        const workbook = XLSX.read(data, { type: "array" });
-
-        const sheetName = workbook.SheetNames[0]; // Get the first sheet
-        const sheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(sheet); // Convert to JSON
-
-        setFileData(jsonData); // Set the parsed data for XLSX
-        // Generate chart data based on the XLSX content
-        const chartData = generateChartData(type, jsonData);
-        setChartData(chartData);
+        const fileExtension = downloadURL.split('.').pop()?.toLowerCase();
+        
+        let parsedData = null;
+  
+        if (fileExtension === "xlsx") {
+          const response = await axios.get(downloadURL, {
+            responseType: "arraybuffer",
+          });
+          const data = new Uint8Array(response.data);
+          const workbook = XLSX.read(data, { type: "array" });
+  
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+  
+          if (!sheet) throw new Error("Sheet is undefined or null.");
+  
+          parsedData = XLSX.utils.sheet_to_json(sheet); 
+        } else if (fileExtension === "csv") {
+          const response = await axios.get(downloadURL, {
+            responseType: "blob",
+          });
+          const csvText = await response.data.text();
+          const parsedCSV = Papa.parse(csvText, { header: true });
+  
+          if (parsedCSV.errors.length > 0) {
+            throw new Error("CSV parsing errors occurred.");
+          }
+          parsedData = parsedCSV.data;
+        } else {
+          throw new Error("Unsupported file type. Only XLSX and CSV are supported.");
+        }
+  
+        if (!Array.isArray(parsedData) || parsedData.length === 0) {
+          throw new Error("Parsed data is empty or invalid.");
+        }
+  
+        setFileData(parsedData);
       } catch (err) {
-        console.error("Error fetching or parsing XLSX:", err);
-        setError("Error fetching or parsing XLSX data.");
+        console.error("Error fetching or parsing data:", err);
+        setError("Error fetching or parsing dataset. Ensure the file format is valid.");
       }
+    } else {
+      setError("Download URL is not available.");
     }
   };
 
-  // Function to generate chart data
-  const generateChartData = (type: string, data: any) => {
-    // Extract all keys (columns) from the data
-    const keys = Object.keys(data[0]);
+  const getTableData = (data: any) => {
+    const length = data.length;
+    const head = data.slice(0, 5); // Get first 5 rows
+    const tail = data.slice(Math.max(length - 5, 0)); // Get last 5 rows
+    const middle = data.slice(Math.floor(length / 2) - 2, Math.floor(length / 2) + 3); // Get middle 5 rows
 
-    // Ensure there are enough keys to plot
-    if (keys.length < 2) {
-      setError("Dataset does not have enough data to generate a chart.");
-      return null;
-    }
-
-    // Use the first key as labels (e.g., x-axis values)
-    const labelKey = keys[0];
-    const labels = data.map((row: any) => row[labelKey]);
-
-    // The rest of the keys are used as datasets
-    const dataKeys = keys.slice(1);
-
-    // Define colors for the datasets
-    const colors = [
-      {
-        backgroundColor: "rgba(255,99,132,0.2)",
-        borderColor: "rgba(255,99,132,1)",
-      },
-      {
-        backgroundColor: "rgba(54,162,235,0.2)",
-        borderColor: "rgba(54,162,235,1)",
-      },
-      {
-        backgroundColor: "rgba(255,206,86,0.2)",
-        borderColor: "rgba(255,206,86,1)",
-      },
-      // Add more colors if you have more datasets
-    ];
-
-    // Create datasets for the chart
-    const datasets = dataKeys.map((key, index) => {
-      const values = data.map((row: any) => Number(row[key]) || 0);
-      return {
-        label: key,
-        data: values,
-        backgroundColor: colors[index % colors.length].backgroundColor,
-        borderColor: colors[index % colors.length].borderColor,
-        borderWidth: 1,
-      };
-    });
-
-    return { labels, datasets };
+    return { head, middle, tail };
   };
-
-  if (error) {
-    return (
-      <div className="text-center text-red-600 p-4 bg-red-100 rounded-lg mt-4">
-        {error}
-      </div>
-    );
-  }
-
-  if (datasetDetails.length === 0 && !fileData) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -226,83 +170,111 @@ export function SearchResultsComponent({
                 </div>
               </a>
 
-              {/* Action Buttons */}
-              <div className="absolute top-4 right-4 flex space-x-2">
+              {/* Buttons */}
+              <div className="absolute top-5 right-5 flex flex-col space-y-2">
                 {/* Download Button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (downloadURL) {
-                      window.location.href = downloadURL; // Redirect to the download URL
-                    } else {
-                      alert("Download URL not available");
-                    }
-                  }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition"
+                <a
+                  href={downloadURL || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn bg-green-500 text-white rounded-md py-2 px-4"
                 >
                   Download
+                </a>
+
+                {/* Visualize Button */}
+                <button
+                  onMouseEnter={() => setHoveredButtonId(datasetId)}
+                  onMouseLeave={() => setHoveredButtonId(null)}
+                  className="btn bg-blue-500 text-white rounded-md py-2 px-4"
+                >
+                  Visualize
                 </button>
 
-                {/* Visualize Button with Hover for Options */}
-                <div className="relative group">
-                  <button
-                    onClick={(e) => e.stopPropagation()}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition"
+                {/* Dropdown for Visualize button when hovered */}
+                {hoveredButtonId === datasetId && (
+                  <div
+                    className="absolute top-10 right-0 bg-white shadow-md rounded-md w-32 z-10"
+                    onMouseEnter={() => setHoveredButtonId(datasetId)}
+                    onMouseLeave={() => setHoveredButtonId(null)}
                   >
-                    Visualize
-                  </button>
-
-                  {/* Visualization Options Dropdown */}
-                  <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div
+                    <button
                       onClick={() =>
-                        handleVisualizationSelect("bar", datasetId, downloadURL)
+                        handleVisualizationSelect("Table", datasetId, downloadURL)
                       }
-                      className="px-4 py-2 text-sm cursor-pointer hover:bg-gray-100"
+                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                     >
-                      Bar Chart
-                    </div>
-                    <div
+                      Table
+                    </button>
+                    <button
                       onClick={() =>
-                        handleVisualizationSelect(
-                          "line",
-                          datasetId,
-                          downloadURL
-                        )
+                        handleVisualizationSelect("Bar", datasetId, downloadURL)
                       }
-                      className="px-4 py-2 text-sm cursor-pointer hover:bg-gray-100"
+                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                     >
-                      Line Chart
-                    </div>
-                    <div
+                      Bar
+                    </button>
+                    <button
                       onClick={() =>
-                        handleVisualizationSelect(
-                          "scatter",
-                          datasetId,
-                          downloadURL
-                        )
+                        handleVisualizationSelect("Line", datasetId, downloadURL)
                       }
-                      className="px-4 py-2 text-sm cursor-pointer hover:bg-gray-100"
+                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                     >
-                      Scatter Plot
-                    </div>
+                      Line
+                    </button>
                   </div>
-                </div>
+                )}
               </div>
             </motion.div>
           );
         })}
       </div>
 
-      {/* Render Chart based on selected visualization */}
-      {chartData && (
-        <div className="mt-8">
-          <h2 className="text-xl font-bold mb-4">Visualization</h2>
-          {selectedVisualization === "bar" && <Bar data={chartData} />}
-          {selectedVisualization === "line" && <Line data={chartData} />}
-          {selectedVisualization === "scatter" && <Scatter data={chartData} />}
-        </div>
-      )}
+      {/* Data Visualization */}
+      <div>
+        {fileData && selectedVisualization === "Table" && (
+          <div className="mt-6">
+            <h3 className="text-xl font-semibold mb-4">Table Visualization</h3>
+            <div>
+              {["head", "middle", "tail"].map((part) => {
+                const { head, middle, tail } = getTableData(fileData);
+                const rows =
+                  part === "head" ? head : part === "middle" ? middle : tail;
+                return (
+                  <div key={part}>
+                    <h4 className="text-lg font-semibold mb-2">{part}</h4>
+                    <table className="min-w-full table-auto mb-4 border">
+                      <thead>
+                        <tr className="text-left bg-gray-100">
+                          {Object.keys(rows[0] || {}).map((key) => (
+                            <th
+                              key={key}
+                              className="border px-4 py-2 text-left bg-gray-100"
+                            >
+                              {key}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((row: any, idx: number) => (
+                          <tr key={idx}>
+                            {Object.entries(row).map(([key, value]) => (
+                              <td key={key} className="border px-4 py-2">
+                                {String(value)}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
