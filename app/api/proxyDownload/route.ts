@@ -13,14 +13,17 @@ export async function GET(request: NextRequest) {
   }
 
   // Security check to allow only specific domains
-  if (!url.startsWith("https://data.abudhabi/")) {
+  if (!url.startsWith("https://data.abudhabi/") && !url.startsWith("https://firebasestorage.googleapis.com//")) {
     return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
   }
+  
 
   try {
     const response = await axios.get(url, {
       responseType: "arraybuffer",
+      timeout: 10000, // Timeout in milliseconds
     });
+    
 
     // Set appropriate headers
     const headers = new Headers();

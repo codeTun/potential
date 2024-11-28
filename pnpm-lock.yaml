@@ -4787,6 +4787,7 @@ snapshots:
       react-chartjs-2: 5.2.0(chart.js@4.4.6)(react@18.3.1)
       react-dom: 18.3.1(react@18.3.1)
       react-modal: 3.16.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react-toastify: 10.0.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       tailwind-merge: 2.5.4
       tailwindcss-animate: 1.0.7(tailwindcss@3.4.14)
       xlsx: 0.18.5

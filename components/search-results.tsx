@@ -105,54 +105,37 @@ export function SearchResultsComponent({
 
   const handleVisualizationSelect = async (type: "Table" | "Bar" | "Line") => {
     setSelectedVisualization(type);
-
+  
     if (currentDownloadURL) {
       try {
-        const fileExtension = currentDownloadURL
-          .split(".")
-          .pop()
-          ?.toLowerCase();
-
+        const fileExtension = currentDownloadURL.split(".").pop()?.toLowerCase();
+  
         let parsedData: any = null;
-
-        // Use the proxy API route
-        const proxyUrl = `/api/proxyDownload?url=${encodeURIComponent(
-          currentDownloadURL
-        )}`;
-
+        const proxyUrl = `/api/proxyDownload?url=${encodeURIComponent(currentDownloadURL)}`;
+  
         if (fileExtension === "xlsx") {
-          const response = await axios.get(proxyUrl, {
-            responseType: "arraybuffer",
-          });
+          const response = await axios.get(proxyUrl, { responseType: "arraybuffer" });
           const data = new Uint8Array(response.data);
           const workbook = XLSX.read(data, { type: "array" });
-
+  
           const sheetName = workbook.SheetNames[0];
           const sheet = workbook.Sheets[sheetName];
-
           if (!sheet) throw new Error("Sheet is undefined or null.");
-
+  
           parsedData = XLSX.utils.sheet_to_json(sheet);
         } else if (fileExtension === "csv") {
-          const response = await axios.get(proxyUrl, {
-            responseType: "text",
-          });
+          const response = await axios.get(proxyUrl, { responseType: "text" });
           const csvText = response.data;
-          const parsedCSV = Papa.parse(csvText, { header: true });
-
-          if (parsedCSV.errors.length > 0) {
-            throw new Error("CSV parsing errors occurred.");
-          }
+  
+          const parsedCSV = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+          if (parsedCSV.errors.length > 0) throw new Error("CSV parsing errors occurred.");
           parsedData = parsedCSV.data;
-        } else {
-          throw new Error(
-            "Unsupported file type. Only XLSX and CSV are supported."
-          );
+  
+          if (!Array.isArray(parsedData) || parsedData.length === 0) {
+            throw new Error("CSV data is empty or invalid.");
+          }
         }
-
-        if (!Array.isArray(parsedData) || parsedData.length === 0) {
-          throw new Error("Parsed data is empty or invalid.");
-        }
+        
 
         setFileData(parsedData);
 
@@ -166,18 +149,15 @@ export function SearchResultsComponent({
         }
       } catch (err: any) {
         console.error("Error fetching or parsing data:", err);
-        setError(
-          "Error fetching or parsing dataset. Ensure the file format is valid."
-        );
-        toast.error(
-          "Error fetching or parsing dataset. Ensure the file format is valid."
-        );
+        setError("Error fetching or parsing dataset. Ensure the file format is valid.");
+        toast.error("Error fetching or parsing dataset. Ensure the file format is valid.");
       }
     } else {
       setError("Download URL is not available.");
       toast.error("Download URL is not available.");
     }
   };
+  
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
@@ -211,23 +191,31 @@ export function SearchResultsComponent({
       toast.error("Not enough data to generate chart.");
       return null;
     }
-
-    const labelKey = keys[0];
-    const dataKey = keys[1];
-
-    const labels = data.map((row: any) => String(row[labelKey]));
-    const datasetValues = data.map((row: any) => Number(row[dataKey]) || 0);
-
+  
+    const labelKey = keys[0];  // This is used as labels for the chart
+    const dataKey = keys[1];   // This is used as the data for bars/lines
+  
+    // Ensure that both keys are valid and contain meaningful values
+    const labels = data.map((row: any) => String(row[labelKey]) || "Unknown");
+    const datasetValues = data.map((row: any) => {
+      const value = Number(row[dataKey]);
+      return isNaN(value) ? 0 : value;  // Ensure the value is a number or fallback to 0
+    });
+  
+    if (datasetValues.every((value: any) => value === 0)) {
+      setError("All data points are 0 or invalid.");
+      toast.error("All data points are 0 or invalid.");
+      return null;
+    }
+  
     return {
-      labels,
+      labels,  // Array of labels for the x-axis
       datasets: [
         {
           label: dataKey,
           data: datasetValues,
-          backgroundColor:
-            type === "Bar" ? "rgba(75, 192, 192, 0.5)" : undefined,
-          borderColor:
-            type === "Line" ? "rgba(75, 192, 192, 1)" : undefined,
+          backgroundColor: type === "Bar" ? "rgba(75, 192, 192, 0.5)" : undefined,
+          borderColor: type === "Line" ? "rgba(75, 192, 192, 1)" : undefined,
           fill: type === "Line" ? false : undefined,
         },
       ],
@@ -419,16 +407,18 @@ export function SearchResultsComponent({
                     </div>
                   </div>
                 )}
-                {chartData && selectedVisualization === "Line" && (
-                  <div className="mt-6">
-                    <h3 className="text-2xl font-semibold mb-4 text-center">
-                      Line Chart
-                    </h3>
-                    <div className="max-w-3xl mx-auto">
-                      <Line data={chartData} />
-                    </div>
-                  </div>
-                )}
+                 {chartData ? (
+          <>
+            {selectedVisualization === "Bar" && (
+              <Bar data={chartData} options={{ responsive: true }} />
+            )}
+            {selectedVisualization === "Line" && (
+              <Line data={chartData} options={{ responsive: true }} />
+            )}
+          </>
+        ) : (
+          <div className="text-center">Loading chart...</div>
+        )}
                 {error && (
                   <div className="text-center text-red-600 p-4 bg-red-100 rounded-lg mt-4">
                     {error}
