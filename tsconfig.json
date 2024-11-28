@@ -20,7 +20,9 @@
     ],
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+    "typeRoots": ["node_modules/@types", "./types"],  // Adjusted to include ./types
+    "types": ["react", "react-dom", "react-modal"] // Include relevant types here
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

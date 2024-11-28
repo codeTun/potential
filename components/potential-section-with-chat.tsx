@@ -1,15 +1,36 @@
-"use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, Zap, Target, X, Send } from "lucide-react";
+import { MessageCircle, Zap, Target, X, Send, Paperclip } from "lucide-react";
+import { initializeApp } from "firebase/app";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import {
+  AzureKeyCredential,
+  DocumentAnalysisClient,
+} from "@azure/ai-form-recognizer";
+
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyAIBvTqAC7Wf2V-bk3CQfcDLroW0cuxZZ4",
+  authDomain: "notyet4r.firebaseapp.com",
+  projectId: "notyet4r",
+  storageBucket: "notyet4r.appspot.com",
+  messagingSenderId: "276781279558",
+  appId: "1:276781279558:web:a757c62366721d89dd5d47",
+  measurementId: "G-GSLSTGNCTP",
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const storage = getStorage(app);
 
 interface Message {
   text: string;
   sender: "user" | "bot";
+  imageUrl?: string;
 }
 
 interface PotentialSectionProps {
@@ -21,7 +42,6 @@ export function PotentialSection({
   externalQuery,
   onDatasetsChange,
 }: PotentialSectionProps) {
-  const [isVisible] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -34,15 +54,17 @@ export function PotentialSection({
   const [searchResultsIdentifiers, setSearchResultsIdentifiers] = useState<
     string[]
   >([]);
+  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const MAX_HISTORY = 6;
 
   useEffect(() => {
-    if (externalQuery.trim()) {
+    if (externalQuery.trim() && !input) {
       setIsChatOpen(true);
       handleSend(externalQuery);
     }
-  }, [externalQuery]);
+  }, [externalQuery, input]);
 
   useEffect(() => {
     if (searchResultsIdentifiers.length > 0) {
@@ -50,14 +72,26 @@ export function PotentialSection({
     }
   }, [searchResultsIdentifiers, onDatasetsChange]);
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
   const handleSend = async (messageText: string) => {
     if (messageText.trim() && !isProcessing) {
       setIsProcessing(true);
+
       setMessages((prev) => [
         ...prev,
-        { text: messageText.trim(), sender: "user" },
+        {
+          text: messageText.trim(),
+          sender: "user",
+          imageUrl: uploadedImage
+            ? URL.createObjectURL(uploadedImage)
+            : undefined,
+        },
       ]);
       setInput("");
+      setUploadedImage(null);
 
       let chatHistory = JSON.parse(localStorage.getItem("chatHistory") || "[]");
       chatHistory.push({ role: "user", content: messageText.trim() });
@@ -67,7 +101,42 @@ export function PotentialSection({
       }
 
       try {
-        // First API Call
+        let extractedText = "";
+
+        if (uploadedImage) {
+          const imageRef = ref(storage, `images/${uploadedImage.name}`);
+          await uploadBytes(imageRef, uploadedImage);
+          const fileUrl = await getDownloadURL(imageRef);
+
+          const endpoint = process.env.FORM_RECOGNIZER_ENDPOINT; // Replace with your Azure endpoint
+          const key = process.env.FORM_RECOGNIZER_KEY; // Replace with your Azure key
+
+          const client = new DocumentAnalysisClient(
+            endpoint!,
+            new AzureKeyCredential(key!)
+          );
+
+          const poller = await client.beginAnalyzeDocumentFromUrl(
+            "prebuilt-read",
+            fileUrl
+          );
+          const { pages } = await poller.pollUntilDone();
+
+          if (pages && pages.length > 0) {
+            extractedText = pages
+              .map((page) =>
+                page.lines
+                  ? page.lines.map((line) => line.content).join(" ")
+                  : ""
+              )
+              .join(" ");
+          } else {
+            throw new Error("No pages extracted from the document.");
+          }
+        }
+
+        const finalInput = `${extractedText} ${messageText}`.trim();
+
         const localResponse = await fetch("/api/gpt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -75,9 +144,19 @@ export function PotentialSection({
             messages: [
               {
                 role: "system",
-                content: `Your role as the Abu Dhabi Open Data Platform AI is as follows: - **Query Evaluation and Refinement**: When you receive a prompt, assess if it is a search query. - If the query is suitable as provided, repeat it exactly as is. - If the query could be refined, modify it to improve relevance and respond only with the refined keywords. - Avoid unnecessary words such as "data," "dataset," or specific UAE city names, even if mentioned. - **Re-query Generation for Enhanced Relevance**: If the user context suggests that previous results were unsatisfactory, generate a new query that better meets the user's needs based on the conversation context. Reply only with the new query. - **Dataset Discussion**: If the user is asking questions or discussing a dataset they retrieved without requesting new information, reply only with "0" to indicate no new query is required. **Important**: - Focus exclusively on keywords relevant to the user's intent, avoiding filler words. - Aim for keywords directly tied to the specific purpose (e.g., "finance," "public health," "citizen well-being"), keeping responses concise and to the point.`,
+                content: `Your role as the Abu Dhabi Open Data Platform AI is as follows:
+- **Query Evaluation and Refinement**: When you receive a prompt, assess if it is a search query.
+- If the query is suitable as provided, repeat it exactly as is.
+- If the query could be refined, modify it to improve relevance and respond only with the refined keywords.
+- Avoid unnecessary words such as "data," "dataset," or specific UAE city names, even if mentioned.
+- **Re-query Generation for Enhanced Relevance**: If the user context suggests that previous results were unsatisfactory, generate a new query that better meets the user's needs based on the conversation context. Reply only with the new query.
+- **Dataset Discussion**: If the user is asking questions or discussing a dataset they retrieved without requesting new information, reply only with "0" to indicate no new query is required.
+**Important**:
+- Focus exclusively on keywords relevant to the user's intent, avoiding filler words.
+- Aim for keywords directly tied to the specific purpose (e.g., "finance," "public health," "citizen well-being"), keeping responses concise and to the point.`,
               },
               ...chatHistory,
+              { role: "user", content: finalInput },
             ],
           }),
         });
@@ -86,51 +165,53 @@ export function PotentialSection({
         const searchQuery = localData.choices?.[0]?.message?.content?.trim();
 
         let chunks = "";
-
         if (searchQuery && searchQuery !== "0") {
-          // Search API Call
           const searchEngineResponse = await fetch("/api/search", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ search: searchQuery }),
           });
-        
+
           const searchData = await searchEngineResponse.json();
-        
-          // Iterate through the 'value' array and extract all values
-          chunks = searchData?.value
-            ?.map((doc: any) => {
-              const values = [];
-              (function extractValues(obj) {
-                if (typeof obj === "object" && obj !== null) {
-                  if (Array.isArray(obj)) {
-                    obj.forEach((item) => extractValues(item));
-                  } else {
-                    for (const key in obj) {
-                      extractValues(obj[key]);
+          chunks =
+            searchData?.value
+              ?.map((doc: any) => {
+                const values: string[] = [];
+                (function extractValues(obj) {
+                  if (typeof obj === "object" && obj !== null) {
+                    if (Array.isArray(obj)) {
+                      obj.forEach((item) => extractValues(item));
+                    } else {
+                      for (const key in obj) {
+                        extractValues(obj[key]);
+                      }
                     }
+                  } else if (
+                    typeof obj === "string" ||
+                    typeof obj === "number"
+                  ) {
+                    values.push(obj.toString());
                   }
-                } else if (typeof obj === "string" || typeof obj === "number") {
-                  values.push(obj);
-                }
-              })(doc);
-        
-              return values.join(" ");
-            })
-            .join(" ") || "";
+                })(doc);
+                return values.join(" ");
+              })
+              .join(" ") || "";
         }
 
-        // Second API Call
         const SYSTEM_PROMPT_GLOBAL = {
           role: "system",
-          content: `You are the Abu Dhabi's open data platform AI assistant. You are helpful and friendly, and you provide the best datasets from the open data platform based on user queries. This is the data from the search engine you have: ${chunks}. You only return your response in this structure and make it parse friendly"[[datasets_identifiers_separated_by_comma_each_in_a_list_you_only_put_the_first_identifier_of_each_dataset_in_case_you_wanted_to_return_more_than_one_dataset],your_response]" please do not forget your response structure if you do not find an identifier leave its array empty do not make out responses from your head example "[["8cbaa2c9-2a85-434e-bfc7-6a994b6eaa3d","8cbaa2c9-2a85-434e-bfc7-6a994b6eaa3d"],"we have this kind of dataset and explain it"]" these IDs are just an example for you to understand do not include it in your response`,
+          content: `You are the Abu Dhabi's open data platform AI assistant. You are helpful and friendly, and you provide the best datasets from the open data platform based on user queries. If the user query is specific to something you only return the specific one else if it's general you return all the datasets you have else suggest an alternative and clarify why. This is the data from the search engine you have: ${chunks}. You only return your response in this structure and make it parse friendly "[[datasets_identifiers_separated_by_comma_each_in_a_list_you_only_put_the_first_identifier_of_each_dataset_in_case_you_wanted_to_return_more_than_one_dataset],your_response]" please do not forget your response structure if you do not find an identifier leave its array empty do not make out responses from your head. Example: "[["dataset-id-1","dataset-id-2"],"We have these datasets available..."]"`,
         };
 
         const globalResponse = await fetch("/api/gpt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            messages: [SYSTEM_PROMPT_GLOBAL, ...chatHistory],
+            messages: [
+              SYSTEM_PROMPT_GLOBAL,
+              ...chatHistory,
+              { role: "user", content: finalInput },
+            ],
           }),
         });
 
@@ -168,7 +249,8 @@ export function PotentialSection({
             { text: gptResponse.trim(), sender: "bot" },
           ]);
         }
-      } catch {
+      } catch (error) {
+        console.error("Error during message handling:", error);
         setMessages((prev) => [
           ...prev,
           {
@@ -182,9 +264,18 @@ export function PotentialSection({
     }
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleSend(input);
+  const handleFormSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!isProcessing) {
+      handleSend(input);
+    }
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && !uploadedImage) {
+      setUploadedImage(file);
+    }
   };
 
   return (
@@ -208,7 +299,7 @@ export function PotentialSection({
         <motion.div
           className="grid md:grid-cols-3 gap-8"
           initial="hidden"
-          animate={isVisible ? "visible" : "hidden"}
+          animate={isChatOpen ? "hidden" : "visible"}
           variants={{
             hidden: { opacity: 0, y: 20 },
             visible: {
@@ -218,7 +309,7 @@ export function PotentialSection({
             },
           }}
         >
-          {/* Cards */}
+          {/* Cards for additional features */}
           <motion.div
             variants={{
               hidden: { y: 20, opacity: 0 },
@@ -282,6 +373,7 @@ export function PotentialSection({
           </motion.div>
         </motion.div>
 
+        {/* Conditionally rendering the Chat Window */}
         {isChatOpen ? (
           <ChatWindow
             messages={messages}
@@ -290,6 +382,9 @@ export function PotentialSection({
             onClose={() => setIsChatOpen(false)}
             onInputChange={(e) => setInput(e.target.value)}
             onFormSubmit={handleFormSubmit}
+            onImageUpload={handleImageUpload}
+            uploadedImage={uploadedImage}
+            messagesEndRef={messagesEndRef}
           />
         ) : (
           <ChatToggleButton onClick={() => setIsChatOpen(true)} />
@@ -306,6 +401,9 @@ function ChatWindow({
   onClose,
   onInputChange,
   onFormSubmit,
+  onImageUpload,
+  uploadedImage,
+  messagesEndRef,
 }: {
   messages: Message[];
   input: string;
@@ -313,16 +411,19 @@ function ChatWindow({
   onClose: () => void;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onFormSubmit: (e: React.FormEvent) => void;
+  onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  uploadedImage: File | null;
+  messagesEndRef: React.RefObject<HTMLDivElement>;
 }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 50 }}
-      className="fixed bottom-5 right-5 z-50 w-96 bg-white rounded-lg shadow-2xl overflow-hidden"
+      className="fixed bottom-5 right-5 z-50 w-96 bg-white rounded-lg shadow-2xl overflow-hidden flex flex-col"
     >
       <div className="bg-blue-500 text-white p-4 flex justify-between items-center">
-        <h3 className="font-semibold">Potential Assistant</h3>
+        <h3 className="font-semibold">AI Assistant</h3>
         <Button
           variant="ghost"
           size="icon"
@@ -332,7 +433,7 @@ function ChatWindow({
           <X className="h-4 w-4" />
         </Button>
       </div>
-      <ScrollArea className="h-[400px] p-4">
+      <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
           {messages.map((msg, idx) => (
             <motion.div
@@ -352,9 +453,17 @@ function ChatWindow({
                 } p-3 rounded-lg max-w-[80%] shadow`}
               >
                 {msg.text}
+                {msg.imageUrl && (
+                  <img
+                    src={msg.imageUrl}
+                    alt="Uploaded Content"
+                    className="mt-2 max-w-full"
+                  />
+                )}
               </div>
             </motion.div>
           ))}
+          <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
       <div className="p-4 bg-gray-50">
@@ -365,14 +474,35 @@ function ChatWindow({
             placeholder="Type your message..."
             className="flex-1"
           />
-          <Button
-            type="submit"
-            disabled={isProcessing || !input.trim()}
-            className="bg-blue-500 text-white hover:bg-blue-600"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-2 items-center">
+            <label htmlFor="file-upload" className="cursor-pointer">
+              <Paperclip className="h-6 w-6 text-gray-600" />
+            </label>
+            <input
+              id="file-upload"
+              type="file"
+              accept="image/*"
+              onChange={onImageUpload}
+              className="hidden"
+            />
+            <Button
+              type="submit"
+              disabled={isProcessing || (!input.trim() && !uploadedImage)}
+              className="bg-blue-500 text-white hover:bg-blue-600"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
         </form>
+        {uploadedImage && (
+          <div className="mt-4">
+            <img
+              src={URL.createObjectURL(uploadedImage)}
+              alt="Uploaded"
+              className="max-w-full"
+            />
+          </div>
+        )}
       </div>
     </motion.div>
   );
