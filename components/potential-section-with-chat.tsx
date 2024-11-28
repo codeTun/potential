@@ -8,6 +8,7 @@ import { MessageCircle, Zap, Target, X, Send } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { AzureKeyCredential, DocumentAnalysisClient } from "@azure/ai-form-recognizer";  // Import Azure SDK
+import { Paperclip } from "lucide-react";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -53,11 +54,11 @@ export function PotentialSection({
   const MAX_HISTORY = 6;
 
   useEffect(() => {
-    if (externalQuery.trim()) {
+    if (externalQuery.trim() && !input) { // Avoid resetting if the input is already set
       setIsChatOpen(true);
       handleSend(externalQuery);
     }
-  }, [externalQuery]);
+  }, [externalQuery, input]); // Only run this effect when externalQuery or input changes
 
   useEffect(() => {
     if (searchResultsIdentifiers.length > 0) {
@@ -73,7 +74,11 @@ export function PotentialSection({
       // Step 1: Add the user message to the chat state
       setMessages((prev) => [
         ...prev,
-        { text: messageText.trim(), sender: "user", imageUrl: uploadedImage ? URL.createObjectURL(uploadedImage) : undefined },
+        {
+          text: messageText.trim(),
+          sender: "user",
+          imageUrl: uploadedImage ? URL.createObjectURL(uploadedImage) : undefined,
+        },
       ]);
       setInput(""); // Clear the input field after sending
   
@@ -130,7 +135,7 @@ export function PotentialSection({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            messages: [{ role: "system", content: `Your role as the Abu Dhabi Open Data Platform AI is as follows: - **Query Evaluation and Refinement**: When you receive a prompt, assess if it is a search query. - If the query is suitable as provided, repeat it exactly as is. - If the query could be refined, modify it to improve relevance and respond only with the refined keywords. - Avoid unnecessary words such as "data," "dataset," or specific UAE city names, even if mentioned. - **Re-query Generation for Enhanced Relevance**: If the user context suggests that previous results were unsatisfactory, generate a new query that better meets the user's needs based on the conversation context. Reply only with the new query. - **Dataset Discussion**: If the user is asking questions or discussing a dataset they retrieved without requesting new information, reply only with "0" to indicate no new query is required. **Important**: - Focus exclusively on keywords relevant to the user's intent, avoiding filler words. - Aim for keywords directly tied to the specific purpose (e.g., "finance," "public health," "citizen well-being"), keeping responses concise and to the point.` }, ...chatHistory, { role: "user", content: finalInput }],
+            messages: [{ role: "system", content: `local sytem prompt content` }, ...chatHistory, { role: "user", content: finalInput }],
           }),
         });
   
@@ -170,7 +175,7 @@ export function PotentialSection({
   
         const SYSTEM_PROMPT_GLOBAL = {
           role: "system",
-          content: `You are the Abu Dhabi's open data platform AI assistant. You are helpful and friendly, and you provide the best datasets from the open data platform based on user queries. If the user query is specific to something you only return the specific one else if it's general you return all the datasets you have else suggest an alternative and clarify why. This is the data from the search engine you have: ${chunks}. You only return your response in this structure and make it parse friendly"[[datasets_identifiers_separated_by_comma_each_in_a_list_you_only_put_the_first_identifier_of_each_dataset_in_case_you_wanted_to_return_more_than_one_dataset],your_response]" please do not forget your response structure if you do not find an identifier leave its array empty do not make out responses from your head example "[["8cbaa2c9-2a85-434e-bfc7-6a994b6eaa3d","8cbaa2c9-2a85-434e-bfc7-6a994b6eaa3d"],"we have this kind of dataset and explain it"]" these IDs are just an example for you to understand do not include it in your response`,
+          content: `global system prompt content`,
         };
   
         const globalResponse = await fetch("/api/gpt", {
@@ -231,16 +236,21 @@ export function PotentialSection({
   
 
   const handleFormSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    handleSend(input);
-  };
-
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setUploadedImage(file);
+    event.preventDefault();  // Prevent page reload
+    if (!isProcessing) {
+      handleSend(input);  // Call send only if not processing
     }
   };
+  
+  
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && !uploadedImage) {
+      setUploadedImage(file);  // Set image only if not already uploaded
+    }
+  };
+  
+  
   return (
     <section className="py-24 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
       <div className="container mx-auto px-4">
@@ -254,11 +264,10 @@ export function PotentialSection({
             Experience Our AI-Powered Chatbot
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Unlock the power of AI to enhance your conversations and boost
-            productivity with our cutting-edge chatbot.
+            Unlock the power of AI to enhance your conversations and boost productivity with our cutting-edge chatbot.
           </p>
         </motion.div>
-
+  
         <motion.div
           className="grid md:grid-cols-3 gap-8"
           initial="hidden"
@@ -268,55 +277,181 @@ export function PotentialSection({
             visible: { opacity: 1, y: 0, transition: { delayChildren: 0.3, staggerChildren: 0.2 } },
           }}
         >
-          <form
-            className="space-y-4 col-span-2 bg-white p-4 rounded-lg shadow-lg border border-gray-200"
-            onSubmit={handleFormSubmit}
-          >
-            <div className="space-y-4">
-              <label htmlFor="chatInput" className="block font-medium text-gray-800">
-                Ask me anything:
-              </label>
-              <Input
-                type="text"
-                id="chatInput"
-                name="chatInput"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Type your message here"
-                className="p-3 w-full rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <div className="flex gap-4">
-                <input
-                  type="file"
-                  onChange={handleImageUpload}
-                  className="p-2 bg-gray-200 rounded-md cursor-pointer"
-                />
-                <Button
-                  type="submit"
-                  className="bg-blue-600 text-white p-3 rounded-md"
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? "Sending..." : "Send"}
-                </Button>
-              </div>
-            </div>
-          </form>
-
-          <div className="col-span-3 bg-white p-4 rounded-lg shadow-lg border border-gray-200 overflow-y-auto max-h-96">
-            <ScrollArea className="h-full space-y-4">
-              {messages.map((message, idx) => (
-                <div key={idx} className={`p-3 ${message.sender === "user" ? "bg-blue-100" : "bg-gray-100"}`}>
-                  <p className={`font-semibold ${message.sender === "user" ? "text-blue-600" : "text-gray-800"}`}>
-                    {message.sender === "user" ? "You" : "Bot"}
-                  </p>
-                  <p className="mt-1">{message.text}</p>
-                  {message.imageUrl && <img src={message.imageUrl} alt="Uploaded Content" className="mt-2 max-w-full" />}
+          {/* Cards for additional features */}
+          <motion.div variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+            <Card className="h-full transform hover:scale-105 transition-transform duration-300">
+              <CardContent className="p-6 flex flex-col items-center text-center">
+                <div className="bg-blue-100 p-4 rounded-full mb-4">
+                  <MessageCircle className="w-12 h-12 text-blue-500" />
                 </div>
-              ))}
-            </ScrollArea>
-          </div>
+                <h3 className="text-xl font-semibold mb-2">Intelligent Conversations</h3>
+                <p className="text-gray-600">
+                  Engage in meaningful dialogues with our advanced AI, capable of understanding context and nuance.
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+  
+          <motion.div variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+            <Card className="h-full transform hover:scale-105 transition-transform duration-300">
+              <CardContent className="p-6 flex flex-col items-center text-center">
+                <div className="bg-green-100 p-4 rounded-full mb-4">
+                  <Zap className="w-12 h-12 text-green-500" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Instant Results</h3>
+                <p className="text-gray-600">
+                  Get real-time answers and recommendations without waiting.
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+  
+          <motion.div variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+            <Card className="h-full transform hover:scale-105 transition-transform duration-300">
+              <CardContent className="p-6 flex flex-col items-center text-center">
+                <div className="bg-red-100 p-4 rounded-full mb-4">
+                  <Target className="w-12 h-12 text-red-500" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Personalized Service</h3>
+                <p className="text-gray-600">
+                  Experience tailor-made suggestions based on your preferences.
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
         </motion.div>
+  
+        {/* Conditionally rendering the Chat Window */}
+        {isChatOpen ? (
+          <ChatWindow
+            messages={messages}
+            input={input}
+            isProcessing={isProcessing}
+            onClose={() => setIsChatOpen(false)}
+            onInputChange={(e) => setInput(e.target.value)}
+            onFormSubmit={handleFormSubmit}
+            uploadedImage={uploadedImage}  // Pass uploaded image here
+          />
+        ) : (
+          <ChatToggleButton onClick={() => setIsChatOpen(true)} />
+        )}
       </div>
     </section>
   );
+  
+  function ChatWindow({
+    messages,
+    input,
+    isProcessing,
+    onClose,
+    onInputChange,
+    onFormSubmit,
+    uploadedImage,  // Add uploadedImage prop
+  }: {
+    messages: Message[];
+    input: string;
+    isProcessing: boolean;
+    onClose: () => void;
+    onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onFormSubmit: (e: React.FormEvent) => void;
+    uploadedImage: File | null;  // Allow uploaded image to be passed
+  }) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 50 }}
+        className="fixed bottom-5 right-5 z-50 w-96 bg-white rounded-lg shadow-2xl overflow-hidden"
+      >
+        <div className="bg-blue-500 text-white p-4 flex justify-between items-center">
+          <h3 className="font-semibold">AI Assistant</h3>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="text-white hover:bg-blue-600"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <ScrollArea className="h-[400px] p-4">
+          <div className="space-y-4">
+            {messages.map((msg, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className={`flex ${
+                  msg.sender === "user" ? "justify-end" : "justify-start"
+                }`}
+              >
+                <div
+                  className={`${
+                    msg.sender === "user"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-200 text-gray-800"
+                  } p-3 rounded-lg max-w-[80%] shadow`}
+                >
+                  {msg.text}
+                  {msg.imageUrl && <img src={msg.imageUrl} alt="Uploaded Content" className="mt-2 max-w-full" />}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </ScrollArea>
+        <div className="p-4 bg-gray-50">
+          <form onSubmit={onFormSubmit} className="flex items-center space-x-2">
+            <Input
+              value={input}
+              onChange={onInputChange}
+              placeholder="Type your message..."
+              className="flex-1"
+            />
+            <div className="flex gap-4 items-center">
+              {/* File upload button as a clip icon */}
+              <label htmlFor="file-upload" className="cursor-pointer">
+                <Paperclip className="h-6 w-6 text-gray-600" />
+              </label>
+              <input
+                id="file-upload"
+                type="file"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <Button
+                type="submit"
+                disabled={isProcessing || !input.trim()}
+                className="bg-blue-500 text-white hover:bg-blue-600"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </form>
+          {uploadedImage && (
+            <div className="mt-4">
+              <img src={URL.createObjectURL(uploadedImage)} alt="Uploaded" className="max-w-full" />
+            </div>
+          )}
+        </div>
+      </motion.div>
+    );
+  }
+  
+  function ChatToggleButton({ onClick }: { onClick: () => void }) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="fixed bottom-5 right-5 z-50"
+      >
+        <Button
+          onClick={onClick}
+          className="bg-blue-500 text-white hover:bg-blue-600 rounded-full p-4 shadow-lg"
+        >
+          <MessageCircle className="h-6 w-6" />
+        </Button>
+      </motion.div>
+    );
+  }
 }
