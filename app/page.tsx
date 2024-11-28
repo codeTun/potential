@@ -8,9 +8,8 @@ import { PotentialSection } from "@/components/potential-section-with-chat";
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [datasetIds, setDatasetIds] = useState<string[]>([]); // Array to store dataset IDs
-  const [datasets, setDatasets] = useState<any[]>([]); // Array to store dataset details
-
+  const [datasetIds, setDatasetIds] = useState<string[]>([]);
+  const [datasets, setDatasets] = useState<string[]>([]); // Updated to store dataset identifiers
   const handleSearch = (query: string) => {
     setSearchQuery(query); // Update the search query
     // Here you could trigger an API call to get dataset IDs based on the search query

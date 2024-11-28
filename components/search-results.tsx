@@ -1,9 +1,37 @@
+// components/search-results.tsx
+"use client";
+
 import { useState, useEffect } from "react";
 import Papa from "papaparse";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { Bar, Line } from "react-chartjs-2";
 import { motion } from "framer-motion";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement, // Added PointElement
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+// Register the required chart components, including PointElement
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement, // Register PointElement
+  Title,
+  Tooltip,
+  Legend
+);
 
 interface SearchResultsComponentProps {
   datasets: string[];
@@ -27,7 +55,11 @@ export function SearchResultsComponent({
 
   useEffect(() => {
     const fetchDatasetDetails = async () => {
-      if (datasets.length === 0) return;
+      if (datasets.length === 0) {
+        setError("No datasets available.");
+        toast.error("No datasets available.");
+        return;
+      }
 
       try {
         const datasetPromises = datasets.map((id) =>
@@ -47,8 +79,10 @@ export function SearchResultsComponent({
         });
 
         setDatasetDetails(datasetsFetched);
-      } catch {
+      } catch (err) {
+        console.error("Error fetching dataset details:", err);
         setError("An error occurred while fetching dataset details.");
+        toast.error("An error occurred while fetching dataset details.");
       }
     };
 
@@ -59,6 +93,11 @@ export function SearchResultsComponent({
     datasetId: string,
     downloadURL: string | null
   ) => {
+    if (!downloadURL) {
+      setError("Download URL is not available.");
+      toast.error("Download URL is not available.");
+      return;
+    }
     setCurrentDatasetId(datasetId);
     setCurrentDownloadURL(downloadURL);
     setIsModalOpen(true);
@@ -74,10 +113,15 @@ export function SearchResultsComponent({
           .pop()
           ?.toLowerCase();
 
-        let parsedData = null;
+        let parsedData: any = null;
+
+        // Use the proxy API route
+        const proxyUrl = `/api/proxyDownload?url=${encodeURIComponent(
+          currentDownloadURL
+        )}`;
 
         if (fileExtension === "xlsx") {
-          const response = await axios.get(currentDownloadURL, {
+          const response = await axios.get(proxyUrl, {
             responseType: "arraybuffer",
           });
           const data = new Uint8Array(response.data);
@@ -90,7 +134,7 @@ export function SearchResultsComponent({
 
           parsedData = XLSX.utils.sheet_to_json(sheet);
         } else if (fileExtension === "csv") {
-          const response = await axios.get(currentDownloadURL, {
+          const response = await axios.get(proxyUrl, {
             responseType: "text",
           });
           const csvText = response.data;
@@ -113,17 +157,25 @@ export function SearchResultsComponent({
         setFileData(parsedData);
 
         if (type === "Bar" || type === "Line") {
-          const chartData = generateChartData(parsedData);
-          setChartData(chartData);
+          const chartData = generateChartData(parsedData, type);
+          if (chartData) {
+            setChartData(chartData);
+          } else {
+            throw new Error("Not enough data to generate chart.");
+          }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error fetching or parsing data:", err);
         setError(
+          "Error fetching or parsing dataset. Ensure the file format is valid."
+        );
+        toast.error(
           "Error fetching or parsing dataset. Ensure the file format is valid."
         );
       }
     } else {
       setError("Download URL is not available.");
+      toast.error("Download URL is not available.");
     }
   };
 
@@ -139,6 +191,9 @@ export function SearchResultsComponent({
 
   const getTableData = (data: any) => {
     const length = data.length;
+    if (length === 0) {
+      return { head: [], middle: [], tail: [] };
+    }
     const head = data.slice(0, 5);
     const tail = data.slice(Math.max(length - 5, 0));
     const middle = data.slice(
@@ -149,16 +204,18 @@ export function SearchResultsComponent({
     return { head, middle, tail };
   };
 
-  const generateChartData = (data: any) => {
+  const generateChartData = (data: any, type: "Bar" | "Line") => {
     const keys = Object.keys(data[0]);
     if (keys.length < 2) {
       setError("Not enough data to generate chart.");
+      toast.error("Not enough data to generate chart.");
       return null;
     }
 
     const labelKey = keys[0];
-    const labels = data.map((row: any) => row[labelKey]);
     const dataKey = keys[1];
+
+    const labels = data.map((row: any) => String(row[labelKey]));
     const datasetValues = data.map((row: any) => Number(row[dataKey]) || 0);
 
     return {
@@ -167,7 +224,11 @@ export function SearchResultsComponent({
         {
           label: dataKey,
           data: datasetValues,
-          backgroundColor: "rgba(75, 192, 192, 0.5)",
+          backgroundColor:
+            type === "Bar" ? "rgba(75, 192, 192, 0.5)" : undefined,
+          borderColor:
+            type === "Line" ? "rgba(75, 192, 192, 1)" : undefined,
+          fill: type === "Line" ? false : undefined,
         },
       ],
     };
@@ -301,6 +362,11 @@ export function SearchResultsComponent({
                             : part === "middle"
                             ? middle
                             : tail;
+
+                        if (rows.length === 0) {
+                          return null;
+                        }
+
                         return (
                           <div key={part} className="mb-8">
                             <h4 className="text-xl font-semibold mb-2 capitalize text-gray-700">
@@ -366,6 +432,11 @@ export function SearchResultsComponent({
                 {error && (
                   <div className="text-center text-red-600 p-4 bg-red-100 rounded-lg mt-4">
                     {error}
+                  </div>
+                )}
+                {!fileData && !error && (
+                  <div className="text-center text-gray-700 p-4 bg-gray-100 rounded-lg mt-4">
+                    The dataset is empty. Cannot visualize.
                   </div>
                 )}
               </div>
