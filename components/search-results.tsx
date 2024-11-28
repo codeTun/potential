@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import Papa from "papaparse";
 import axios from "axios";
-import { motion } from "framer-motion";
 import * as XLSX from "xlsx";
+import { Bar, Line } from "react-chartjs-2";
+import { motion } from "framer-motion";
 
 interface SearchResultsComponentProps {
   datasets: string[];
@@ -17,21 +18,21 @@ export function SearchResultsComponent({
     "Table" | "Bar" | "Line" | null
   >(null);
   const [fileData, setFileData] = useState<any>(null);
-  const [hoveredDatasetId, setHoveredDatasetId] = useState<string | null>(null);
-  const [hoveredButtonId, setHoveredButtonId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [chartData, setChartData] = useState<any>(null);
+  const [currentDatasetId, setCurrentDatasetId] = useState<string | null>(null);
+  const [currentDownloadURL, setCurrentDownloadURL] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     const fetchDatasetDetails = async () => {
-      if (datasets.length === 0) {
-        return;
-      }
-
-      const validDatasets = datasets.map((id) => ({ id }));
+      if (datasets.length === 0) return;
 
       try {
-        const datasetPromises = validDatasets.map((dataset) =>
+        const datasetPromises = datasets.map((id) =>
           axios.get(
-            `https://data.abudhabi/opendata/api/1/metastore/schemas/dataset/items/${dataset.id}?show-reference-ids=false`
+            `https://data.abudhabi/opendata/api/1/metastore/schemas/dataset/items/${id}?show-reference-ids=false`
           )
         );
         const responses = await Promise.all(datasetPromises);
@@ -42,7 +43,7 @@ export function SearchResultsComponent({
           const downloadURL =
             dataset?.distribution?.[0]?.data?.downloadURL ?? null;
 
-          return { ...dataset, datasetId, downloadURL }; 
+          return { ...dataset, datasetId, downloadURL };
         });
 
         setDatasetDetails(datasetsFetched);
@@ -54,79 +55,138 @@ export function SearchResultsComponent({
     fetchDatasetDetails();
   }, [datasets]);
 
-  const handleVisualizationSelect = async (
-      type: "Table" | "Bar" | "Line",
-      datasetId: string,
-      downloadURL: string | null
-    ) => {
+  const handleVisualizeClick = (
+    datasetId: string,
+    downloadURL: string | null
+  ) => {
+    setCurrentDatasetId(datasetId);
+    setCurrentDownloadURL(downloadURL);
+    setIsModalOpen(true);
+  };
+
+  const handleVisualizationSelect = async (type: "Table" | "Bar" | "Line") => {
     setSelectedVisualization(type);
 
-    if (downloadURL) {
+    if (currentDownloadURL) {
       try {
-        const fileExtension = downloadURL.split('.').pop()?.toLowerCase();
-        
+        const fileExtension = currentDownloadURL
+          .split(".")
+          .pop()
+          ?.toLowerCase();
+
         let parsedData = null;
-  
+
         if (fileExtension === "xlsx") {
-          const response = await axios.get(downloadURL, {
+          const response = await axios.get(currentDownloadURL, {
             responseType: "arraybuffer",
           });
           const data = new Uint8Array(response.data);
           const workbook = XLSX.read(data, { type: "array" });
-  
+
           const sheetName = workbook.SheetNames[0];
           const sheet = workbook.Sheets[sheetName];
-  
+
           if (!sheet) throw new Error("Sheet is undefined or null.");
-  
-          parsedData = XLSX.utils.sheet_to_json(sheet); 
+
+          parsedData = XLSX.utils.sheet_to_json(sheet);
         } else if (fileExtension === "csv") {
-          const response = await axios.get(downloadURL, {
-            responseType: "blob",
+          const response = await axios.get(currentDownloadURL, {
+            responseType: "text",
           });
-          const csvText = await response.data.text();
+          const csvText = response.data;
           const parsedCSV = Papa.parse(csvText, { header: true });
-  
+
           if (parsedCSV.errors.length > 0) {
             throw new Error("CSV parsing errors occurred.");
           }
           parsedData = parsedCSV.data;
         } else {
-          throw new Error("Unsupported file type. Only XLSX and CSV are supported.");
+          throw new Error(
+            "Unsupported file type. Only XLSX and CSV are supported."
+          );
         }
-  
+
         if (!Array.isArray(parsedData) || parsedData.length === 0) {
           throw new Error("Parsed data is empty or invalid.");
         }
-  
+
         setFileData(parsedData);
+
+        if (type === "Bar" || type === "Line") {
+          const chartData = generateChartData(parsedData);
+          setChartData(chartData);
+        }
       } catch (err) {
         console.error("Error fetching or parsing data:", err);
-        setError("Error fetching or parsing dataset. Ensure the file format is valid.");
+        setError(
+          "Error fetching or parsing dataset. Ensure the file format is valid."
+        );
       }
     } else {
       setError("Download URL is not available.");
     }
   };
 
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setFileData(null);
+    setChartData(null);
+    setSelectedVisualization(null);
+    setCurrentDatasetId(null);
+    setCurrentDownloadURL(null);
+    setError(null);
+  };
+
   const getTableData = (data: any) => {
     const length = data.length;
-    const head = data.slice(0, 5); // Get first 5 rows
-    const tail = data.slice(Math.max(length - 5, 0)); // Get last 5 rows
-    const middle = data.slice(Math.floor(length / 2) - 2, Math.floor(length / 2) + 3); // Get middle 5 rows
+    const head = data.slice(0, 5);
+    const tail = data.slice(Math.max(length - 5, 0));
+    const middle = data.slice(
+      Math.floor(length / 2) - 2,
+      Math.floor(length / 2) + 3
+    );
 
     return { head, middle, tail };
   };
 
+  const generateChartData = (data: any) => {
+    const keys = Object.keys(data[0]);
+    if (keys.length < 2) {
+      setError("Not enough data to generate chart.");
+      return null;
+    }
+
+    const labelKey = keys[0];
+    const labels = data.map((row: any) => row[labelKey]);
+    const dataKey = keys[1];
+    const datasetValues = data.map((row: any) => Number(row[dataKey]) || 0);
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: dataKey,
+          data: datasetValues,
+          backgroundColor: "rgba(75, 192, 192, 0.5)",
+        },
+      ],
+    };
+  };
+
   return (
     <div>
-      <div className="flex mb-8 mt-5 ml-8">
+      <div className="flex justify-between items-center mb-8 mt-5 ml-8">
         <div className="text-black px-6 py-3 rounded-full shadow-lg">
           <h1 className="text-2xl font-bold">
             {datasetDetails.length} Dataset(s) Found
           </h1>
         </div>
       </div>
+      {error && (
+        <div className="text-center text-red-600 p-4 bg-red-100 rounded-lg mt-4">
+          {error}
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
         {datasetDetails.map((dataset, index) => {
           const datasetId = dataset.datasetId || "undefined";
@@ -140,26 +200,21 @@ export function SearchResultsComponent({
               transition={{ duration: 0.3, delay: index * 0.1 }}
               className="relative"
             >
-              <a
-                href={`https://data.abudhabi/opendata/dataset/detail?id=${datasetId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block h-full"
-              >
-                <div className="bg-white shadow-lg rounded-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 h-full flex flex-col">
-                  <div className="p-6 flex-grow">
-                    <h2 className="text-2xl font-bold mb-2 text-gray-800">
-                      {dataset.title || "Untitled Dataset"}
-                    </h2>
-                    <p className="text-gray-600 mb-4 line-clamp-3">
-                      {dataset.description || "No description available"}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Publisher:{" "}
-                      {dataset.publisher?.data?.name || "Unknown Publisher"}
-                    </p>
-                  </div>
-                  <div className="px-6 py-4 bg-gray-50">
+              <div className="bg-white shadow-lg rounded-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 h-full flex flex-col">
+                <div className="p-6 flex-grow">
+                  <h2 className="text-2xl font-bold mb-2 text-gray-800">
+                    {dataset.title || "Untitled Dataset"}
+                  </h2>
+                  <p className="text-gray-600 mb-4 line-clamp-3">
+                    {dataset.description || "No description available"}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Publisher:{" "}
+                    {dataset.publisher?.data?.name || "Unknown Publisher"}
+                  </p>
+                </div>
+                <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
+                  <div>
                     <span className="inline-block bg-blue-200 rounded-full px-3 py-1 text-sm font-semibold text-blue-700 mr-2">
                       #OpenData
                     </span>
@@ -167,114 +222,157 @@ export function SearchResultsComponent({
                       #AbuDhabi
                     </span>
                   </div>
-                </div>
-              </a>
-
-              {/* Buttons */}
-              <div className="absolute top-5 right-5 flex flex-col space-y-2">
-                {/* Download Button */}
-                <a
-                  href={downloadURL || "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn bg-green-500 text-white rounded-md py-2 px-4"
-                >
-                  Download
-                </a>
-
-                {/* Visualize Button */}
-                <button
-                  onMouseEnter={() => setHoveredButtonId(datasetId)}
-                  onMouseLeave={() => setHoveredButtonId(null)}
-                  className="btn bg-blue-500 text-white rounded-md py-2 px-4"
-                >
-                  Visualize
-                </button>
-
-                {/* Dropdown for Visualize button when hovered */}
-                {hoveredButtonId === datasetId && (
-                  <div
-                    className="absolute top-10 right-0 bg-white shadow-md rounded-md w-32 z-10"
-                    onMouseEnter={() => setHoveredButtonId(datasetId)}
-                    onMouseLeave={() => setHoveredButtonId(null)}
-                  >
+                  <div className="flex space-x-2">
+                    <a
+                      href={downloadURL || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn bg-green-500 hover:bg-green-600 text-white rounded-md py-1 px-3 text-sm"
+                    >
+                      Download
+                    </a>
                     <button
                       onClick={() =>
-                        handleVisualizationSelect("Table", datasetId, downloadURL)
+                        handleVisualizeClick(datasetId, downloadURL)
                       }
-                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                      className="btn bg-blue-500 hover:bg-blue-600 text-white rounded-md py-1 px-3 text-sm"
                     >
-                      Table
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleVisualizationSelect("Bar", datasetId, downloadURL)
-                      }
-                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                    >
-                      Bar
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleVisualizationSelect("Line", datasetId, downloadURL)
-                      }
-                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                    >
-                      Line
+                      Visualize
                     </button>
                   </div>
-                )}
+                </div>
               </div>
             </motion.div>
           );
         })}
       </div>
-
-      {/* Data Visualization */}
-      <div>
-        {fileData && selectedVisualization === "Table" && (
-          <div className="mt-6">
-            <h3 className="text-xl font-semibold mb-4">Table Visualization</h3>
-            <div>
-              {["head", "middle", "tail"].map((part) => {
-                const { head, middle, tail } = getTableData(fileData);
-                const rows =
-                  part === "head" ? head : part === "middle" ? middle : tail;
-                return (
-                  <div key={part}>
-                    <h4 className="text-lg font-semibold mb-2">{part}</h4>
-                    <table className="min-w-full table-auto mb-4 border">
-                      <thead>
-                        <tr className="text-left bg-gray-100">
-                          {Object.keys(rows[0] || {}).map((key) => (
-                            <th
-                              key={key}
-                              className="border px-4 py-2 text-left bg-gray-100"
-                            >
-                              {key}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rows.map((row: any, idx: number) => (
-                          <tr key={idx}>
-                            {Object.entries(row).map(([key, value]) => (
-                              <td key={key} className="border px-4 py-2">
-                                {String(value)}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+      {isModalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div
+            className="absolute inset-0 bg-black opacity-50"
+            onClick={handleCloseModal}
+          ></div>
+          <div className="bg-white rounded-lg p-6 z-50 max-w-5xl w-full max-h-full overflow-auto relative">
+            <button
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+              onClick={handleCloseModal}
+            >
+              &times;
+            </button>
+            {!selectedVisualization ? (
+              <div className="mt-6">
+                <h3 className="text-2xl font-semibold mb-6 text-center">
+                  Select Visualization Type
+                </h3>
+                <div className="flex justify-center space-x-6">
+                  <button
+                    onClick={() => handleVisualizationSelect("Table")}
+                    className="btn bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md py-3 px-6 text-lg"
+                  >
+                    Table
+                  </button>
+                  <button
+                    onClick={() => handleVisualizationSelect("Bar")}
+                    className="btn bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md py-3 px-6 text-lg"
+                  >
+                    Bar Chart
+                  </button>
+                  <button
+                    onClick={() => handleVisualizationSelect("Line")}
+                    className="btn bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md py-3 px-6 text-lg"
+                  >
+                    Line Chart
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                {fileData && selectedVisualization === "Table" && (
+                  <div className="mt-6">
+                    <h3 className="text-2xl font-semibold mb-4 text-center">
+                      Table Visualization
+                    </h3>
+                    <div className="overflow-x-auto">
+                      {["head", "middle", "tail"].map((part) => {
+                        const { head, middle, tail } = getTableData(fileData);
+                        const rows =
+                          part === "head"
+                            ? head
+                            : part === "middle"
+                            ? middle
+                            : tail;
+                        return (
+                          <div key={part} className="mb-8">
+                            <h4 className="text-xl font-semibold mb-2 capitalize text-gray-700">
+                              {part}
+                            </h4>
+                            <table className="min-w-full table-auto mb-4 border">
+                              <thead>
+                                <tr className="text-left bg-gray-100">
+                                  {Object.keys(rows[0] || {}).map((key) => (
+                                    <th
+                                      key={key}
+                                      className="border px-4 py-2 bg-gray-200 text-gray-600"
+                                    >
+                                      {key}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {rows.map((row: any, idx: number) => (
+                                  <tr
+                                    key={idx}
+                                    className="hover:bg-gray-50 transition-colors"
+                                  >
+                                    {Object.entries(row).map(([key, value]) => (
+                                      <td
+                                        key={key}
+                                        className="border px-4 py-2 text-gray-700"
+                                      >
+                                        {String(value)}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                );
-              })}
-            </div>
+                )}
+                {chartData && selectedVisualization === "Bar" && (
+                  <div className="mt-6">
+                    <h3 className="text-2xl font-semibold mb-4 text-center">
+                      Bar Chart
+                    </h3>
+                    <div className="max-w-3xl mx-auto">
+                      <Bar data={chartData} />
+                    </div>
+                  </div>
+                )}
+                {chartData && selectedVisualization === "Line" && (
+                  <div className="mt-6">
+                    <h3 className="text-2xl font-semibold mb-4 text-center">
+                      Line Chart
+                    </h3>
+                    <div className="max-w-3xl mx-auto">
+                      <Line data={chartData} />
+                    </div>
+                  </div>
+                )}
+                {error && (
+                  <div className="text-center text-red-600 p-4 bg-red-100 rounded-lg mt-4">
+                    {error}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
