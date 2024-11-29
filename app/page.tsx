@@ -5,6 +5,7 @@ import { Footer } from "@/components/footer";
 import { HeroSectionComponent } from "@/components/hero-section";
 import { SearchResultsComponent } from "@/components/search-results";
 import { PotentialSection } from "@/components/potential-section-with-chat";
+import Head from "next/head";
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -26,6 +27,9 @@ export default function Home() {
 
   return (
     <>
+      <Head>
+        <meta name="robots" content="noindex, nofollow" />
+      </Head>
       <HeroSectionComponent onSearch={handleSearch} />
       {datasets.length > 0 && <SearchResultsComponent datasets={datasets} />}
       <PotentialSection
