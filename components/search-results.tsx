@@ -105,57 +105,46 @@ export function SearchResultsComponent({
 
   const handleVisualizationSelect = async (type: "Table" | "Bar" | "Line") => {
     setSelectedVisualization(type);
-
+  
     if (currentDownloadURL) {
       try {
-        const fileExtension = currentDownloadURL
-          .split(".")
-          .pop()
-          ?.toLowerCase();
-
+        const fileExtension = currentDownloadURL.split(".").pop()?.toLowerCase();
+  
         let parsedData: any = null;
-
-        // Use the proxy API route
-        const proxyUrl = `/api/proxyDownload?url=${encodeURIComponent(
-          currentDownloadURL
-        )}`;
-
+        const proxyUrl = `/api/proxyDownload?url=${encodeURIComponent(currentDownloadURL)}`;
+  
         if (fileExtension === "xlsx") {
-          const response = await axios.get(proxyUrl, {
-            responseType: "arraybuffer",
-          });
+          const response = await axios.get(proxyUrl, { responseType: "arraybuffer" });
           const data = new Uint8Array(response.data);
           const workbook = XLSX.read(data, { type: "array" });
-
+  
           const sheetName = workbook.SheetNames[0];
           const sheet = workbook.Sheets[sheetName];
-
           if (!sheet) throw new Error("Sheet is undefined or null.");
-
+  
           parsedData = XLSX.utils.sheet_to_json(sheet);
         } else if (fileExtension === "csv") {
-          const response = await axios.get(proxyUrl, {
-            responseType: "text",
-          });
+          const response = await axios.get(proxyUrl, { responseType: "text" });
           const csvText = response.data;
-          const parsedCSV = Papa.parse(csvText, { header: true });
-
-          if (parsedCSV.errors.length > 0) {
-            throw new Error("CSV parsing errors occurred.");
-          }
+  
+          const parsedCSV = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+          if (parsedCSV.errors.length > 0) throw new Error("CSV parsing errors occurred.");
           parsedData = parsedCSV.data;
+  
+          if (!Array.isArray(parsedData) || parsedData.length === 0) {
+            throw new Error("CSV data is empty or invalid.");
+          }
         } else {
-          throw new Error(
-            "Unsupported file type. Only XLSX and CSV are supported."
-          );
+          throw new Error("Invalid file type. Only CSV and XLSX are supported.");
         }
-
-        if (!Array.isArray(parsedData) || parsedData.length === 0) {
-          throw new Error("Parsed data is empty or invalid.");
+  
+        // Check if the parsed data is empty
+        if (!parsedData || parsedData.length === 0) {
+          throw new Error("Dataset is empty or invalid.");
         }
-
+  
         setFileData(parsedData);
-
+  
         if (type === "Bar" || type === "Line") {
           const chartData = generateChartData(parsedData, type);
           if (chartData) {
@@ -167,17 +156,22 @@ export function SearchResultsComponent({
       } catch (err: any) {
         console.error("Error fetching or parsing data:", err);
         setError(
-          "Error fetching or parsing dataset. Ensure the file format is valid."
+          err.message === "Invalid file type. Only CSV and XLSX are supported."
+            ? err.message
+            : "Error fetching or parsing dataset. File content might be corrupted."
         );
         toast.error(
-          "Error fetching or parsing dataset. Ensure the file format is valid."
+          err.message === "Invalid file type. Only CSV and XLSX are supported."
+            ? "Invalid file type. Only CSV and XLSX are supported."
+            : "Error fetching or parsing dataset. File content might be corrupted."
         );
       }
     } else {
       setError("Download URL is not available.");
       toast.error("Download URL is not available.");
     }
-  };
+  };  
+  
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
@@ -206,33 +200,44 @@ export function SearchResultsComponent({
 
   const generateChartData = (data: any, type: "Bar" | "Line") => {
     const keys = Object.keys(data[0]);
+  
     if (keys.length < 2) {
       setError("Not enough data to generate chart.");
       toast.error("Not enough data to generate chart.");
       return null;
     }
-
-    const labelKey = keys[0];
-    const dataKey = keys[1];
-
-    const labels = data.map((row: any) => String(row[labelKey]));
-    const datasetValues = data.map((row: any) => Number(row[dataKey]) || 0);
-
+  
+    // Assuming the first key is for labels and the rest are for dataset values
+    const labelKey = keys[0]; // This key will be used as labels for the x-axis
+    const datasets = keys.slice(1).map((key) => {
+      const datasetValues = data.map((row: any) => {
+        const value = Number(row[key]);
+        return isNaN(value) ? 0 : value;  // Ensure the value is a number or fallback to 0
+      });
+  
+      return {
+        label: key, // Label for each dataset based on the key
+        data: datasetValues,
+        backgroundColor: type === "Bar" ? "rgba(75, 192, 192, 0.5)" : undefined,
+        borderColor: type === "Line" ? "rgba(75, 192, 192, 1)" : undefined,
+        fill: type === "Line" ? false : undefined,
+      };
+    });
+  
+    const labels = data.map((row: any) => String(row[labelKey]) || "Unknown");
+  
+    if (datasets.every((dataset) => dataset.data.every((value: any) => value === 0))) {
+      setError("All data points are 0 or invalid.");
+      toast.error("All data points are 0 or invalid.");
+      return null;
+    }
+  
     return {
-      labels,
-      datasets: [
-        {
-          label: dataKey,
-          data: datasetValues,
-          backgroundColor:
-            type === "Bar" ? "rgba(75, 192, 192, 0.5)" : undefined,
-          borderColor:
-            type === "Line" ? "rgba(75, 192, 192, 1)" : undefined,
-          fill: type === "Line" ? false : undefined,
-        },
-      ],
+      labels, // Labels array for the x-axis
+      datasets, // Array of datasets
     };
   };
+  
 
   return (
     <div>
@@ -419,16 +424,18 @@ export function SearchResultsComponent({
                     </div>
                   </div>
                 )}
-                {chartData && selectedVisualization === "Line" && (
-                  <div className="mt-6">
-                    <h3 className="text-2xl font-semibold mb-4 text-center">
-                      Line Chart
-                    </h3>
-                    <div className="max-w-3xl mx-auto">
-                      <Line data={chartData} />
-                    </div>
-                  </div>
-                )}
+                 {chartData ? (
+          <>
+            {selectedVisualization === "Bar" && (
+              <Bar data={chartData} options={{ responsive: true }} />
+            )}
+            {selectedVisualization === "Line" && (
+              <Line data={chartData} options={{ responsive: true }} />
+            )}
+          </>
+        ) : (
+          <div className="text-center">Loading chart...</div>
+        )}
                 {error && (
                   <div className="text-center text-red-600 p-4 bg-red-100 rounded-lg mt-4">
                     {error}

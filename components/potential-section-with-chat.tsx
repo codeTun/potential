@@ -11,6 +11,8 @@ import {
   AzureKeyCredential,
   DocumentAnalysisClient,
 } from "@azure/ai-form-recognizer";
+import * as dotenv from "dotenv";
+dotenv.config();
 
 // Firebase configuration
 const firebaseConfig = {
@@ -108,30 +110,48 @@ export function PotentialSection({
           await uploadBytes(imageRef, uploadedImage);
           const fileUrl = await getDownloadURL(imageRef);
 
-          const endpoint = process.env.FORM_RECOGNIZER_ENDPOINT; // Replace with your Azure endpoint
-          const key = process.env.FORM_RECOGNIZER_KEY; // Replace with your Azure key
+          const endpoint = String(process.env.FORM_RECOGNIZER_ENDPOINT); // Ensure it's a string
+          const key = String(process.env.FORM_RECOGNIZER_KEY); // Ensure it's a string
 
           const client = new DocumentAnalysisClient(
             endpoint!,
             new AzureKeyCredential(key!)
           );
 
-          const poller = await client.beginAnalyzeDocumentFromUrl(
-            "prebuilt-read",
-            fileUrl
-          );
-          const { pages } = await poller.pollUntilDone();
+          if (fileUrl) {
+            // Process the document using Azure Form Recognizer
+            const endpoint = "YOUR_AZURE_FORM_RECOGNIZER_ENDPOINT"; // Replace with your Azure endpoint
+            const key = "YOUR_AZURE_FORM_RECOGNIZER_KEY"; // Replace with your Azure key
 
-          if (pages && pages.length > 0) {
-            extractedText = pages
-              .map((page) =>
-                page.lines
-                  ? page.lines.map((line) => line.content).join(" ")
-                  : ""
-              )
-              .join(" ");
+            if (!endpoint || !key) {
+              throw new Error(
+                "Azure Form Recognizer endpoint or key is not defined."
+              );
+            }
+
+            const client = new DocumentAnalysisClient(
+              endpoint,
+              new AzureKeyCredential(key)
+            );
+
+            // Use beginAnalyzeDocumentFromUrl with the file URL
+            const poller = await client.beginAnalyzeDocumentFromUrl(
+              "prebuilt-read",
+              fileUrl
+            );
+            const { pages } = await poller.pollUntilDone();
+
+            if (pages && pages.length > 0) {
+              extractedText = pages
+                .map((page) =>
+                  page.lines?.map((line) => line.content).join(" ")
+                )
+                .join(" ");
+            } else {
+              throw new Error("No pages extracted from the document.");
+            }
           } else {
-            throw new Error("No pages extracted from the document.");
+            throw new Error("Failed to upload image.");
           }
         }
 
@@ -144,16 +164,20 @@ export function PotentialSection({
             messages: [
               {
                 role: "system",
-                content: `Your role as the Abu Dhabi Open Data Platform AI is as follows:
+                content: `Hello there who's this? And what is this plateforme?
+
+Your role as the Abu Dhabi Open Data Platform AI is as follows:
 - **Query Evaluation and Refinement**: When you receive a prompt, assess if it is a search query.
 - If the query is suitable as provided, repeat it exactly as is.
 - If the query could be refined, modify it to improve relevance and respond only with the refined keywords.
-- Avoid unnecessary words such as "data," "dataset," or specific UAE city names, even if mentioned.
+- If the user need help in searching for the most suitable datasets.
+- Avoid unnecessary words such as "data," "dataset," even if mentioned.
 - **Re-query Generation for Enhanced Relevance**: If the user context suggests that previous results were unsatisfactory, generate a new query that better meets the user's needs based on the conversation context. Reply only with the new query.
 - **Dataset Discussion**: If the user is asking questions or discussing a dataset they retrieved without requesting new information, reply only with "0" to indicate no new query is required.
 **Important**:
 - Focus exclusively on keywords relevant to the user's intent, avoiding filler words.
-- Aim for keywords directly tied to the specific purpose (e.g., "finance," "public health," "citizen well-being"), keeping responses concise and to the point.`,
+- Aim for keywords directly tied to the specific purpose (e.g., "finance," "public health," "citizen well-being"), keeping responses concise and to the point.
+- You do not interact with the user you only provide dataset queries even if the user wanted to interact.`,
               },
               ...chatHistory,
               { role: "user", content: finalInput },
@@ -200,7 +224,7 @@ export function PotentialSection({
 
         const SYSTEM_PROMPT_GLOBAL = {
           role: "system",
-          content: `You are the Abu Dhabi's open data platform AI assistant. You are helpful and friendly, and you provide the best datasets from the open data platform based on user queries. If the user query is specific to something you only return the specific one else if it's general you return all the datasets you have else suggest an alternative and clarify why. This is the data from the search engine you have: ${chunks}. You only return your response in this structure and make it parse friendly "[[datasets_identifiers_separated_by_comma_each_in_a_list_you_only_put_the_first_identifier_of_each_dataset_in_case_you_wanted_to_return_more_than_one_dataset],your_response]" please do not forget your response structure if you do not find an identifier leave its array empty do not make out responses from your head. Example: "[["dataset-id-1","dataset-id-2"],"We have these datasets available..."]"`,
+          content: `You are the Abu Dhabi's open data platform AI assistant. You are helpful and friendly, and you provide the best datasets from the open data platform based on user queries. If the user query is specific to something you only return the specific one else if it's general you return all the datasets you have, else suggest an alternative dataset from what you have if it's close to the user request and clarify why. This is the data from the search engine you have: ${chunks}. You only return your response in this structure and make it parse friendly"[[datasets_identifiers_separated_by_comma_each_in_a_list_you_only_put_the_first_identifier_of_each_dataset_in_case_you_wanted_to_return_more_than_one_dataset],your_response]" please do not forget your response structure if you do not find an identifier leave its array empty do not make out responses from your head example "[["8cbaa2c9-2a85-434e-bfc7-6a994b6eaa3d","8cbaa2c9-2a85-434e-bfc7-6a994b6eaa3d"],"we have this kind of dataset and explain it"]" these IDs are just an example for you to understand do not include it in your response.`,
         };
 
         const globalResponse = await fetch("/api/gpt", {
@@ -420,10 +444,10 @@ function ChatWindow({
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 50 }}
-      className="fixed bottom-5 right-5 z-50 w-96 bg-white rounded-lg shadow-2xl overflow-hidden flex flex-col"
+      className="fixed bottom-5 right-5 z-50 w-[360px] max-w-full bg-white rounded-lg shadow-2xl overflow-hidden flex flex-col h-[90vh] max-h-[500px]"
     >
       <div className="bg-blue-500 text-white p-4 flex justify-between items-center">
-        <h3 className="font-semibold">AI Assistant</h3>
+        <h3 className="font-semibold">Potential The AI Assistant</h3>
         <Button
           variant="ghost"
           size="icon"
