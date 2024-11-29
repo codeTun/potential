@@ -267,18 +267,25 @@ export function SearchResultsComponent({
               className="relative"
             >
               <div className="bg-white shadow-lg rounded-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 h-full flex flex-col">
-                <div className="p-6 flex-grow">
-                  <h2 className="text-2xl font-bold mb-2 text-gray-800">
-                    {dataset.title || "Untitled Dataset"}
-                  </h2>
-                  <p className="text-gray-600 mb-4 line-clamp-3">
-                    {dataset.description || "No description available"}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Publisher:{" "}
-                    {dataset.publisher?.data?.name || "Unknown Publisher"}
-                  </p>
-                </div>
+              <div className="p-6 flex-grow">
+  <h2 className="text-2xl font-bold mb-2 text-gray-800">
+    <a
+      href={`https://data.abudhabi/opendata/dataset/detail?id=${dataset.datasetId}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-black-600 hover:underline"
+    >
+      {dataset.title || "Untitled Dataset"}
+    </a>
+  </h2>
+  <p className="text-gray-600 mb-4 line-clamp-3">
+    {dataset.description || "No description available"}
+  </p>
+  <p className="text-sm text-gray-500">
+    Publisher:{" "}
+    {dataset.publisher?.data?.name || "Unknown Publisher"}
+  </p>
+</div>
                 <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
                   <div>
                     <span className="inline-block bg-blue-200 rounded-full px-3 py-1 text-sm font-semibold text-blue-700 mr-2">

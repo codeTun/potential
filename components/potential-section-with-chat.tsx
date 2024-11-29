@@ -113,15 +113,9 @@ export function PotentialSection({
           const endpoint = String(process.env.FORM_RECOGNIZER_ENDPOINT); // Ensure it's a string
           const key = String(process.env.FORM_RECOGNIZER_KEY); // Ensure it's a string
 
-          const client = new DocumentAnalysisClient(
-            endpoint!,
-            new AzureKeyCredential(key!)
-          );
-
           if (fileUrl) {
             // Process the document using Azure Form Recognizer
-            const endpoint = "YOUR_AZURE_FORM_RECOGNIZER_ENDPOINT"; // Replace with your Azure endpoint
-            const key = "YOUR_AZURE_FORM_RECOGNIZER_KEY"; // Replace with your Azure key
+            
 
             if (!endpoint || !key) {
               throw new Error(
