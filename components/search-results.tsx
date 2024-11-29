@@ -134,11 +134,17 @@ export function SearchResultsComponent({
           if (!Array.isArray(parsedData) || parsedData.length === 0) {
             throw new Error("CSV data is empty or invalid.");
           }
+        } else {
+          throw new Error("Invalid file type. Only CSV and XLSX are supported.");
         }
-        
-
+  
+        // Check if the parsed data is empty
+        if (!parsedData || parsedData.length === 0) {
+          throw new Error("Dataset is empty or invalid.");
+        }
+  
         setFileData(parsedData);
-
+  
         if (type === "Bar" || type === "Line") {
           const chartData = generateChartData(parsedData, type);
           if (chartData) {
@@ -149,14 +155,22 @@ export function SearchResultsComponent({
         }
       } catch (err: any) {
         console.error("Error fetching or parsing data:", err);
-        setError("Error fetching or parsing dataset. Ensure the file format is valid.");
-        toast.error("Error fetching or parsing dataset. Ensure the file format is valid.");
+        setError(
+          err.message === "Invalid file type. Only CSV and XLSX are supported."
+            ? err.message
+            : "Error fetching or parsing dataset. File content might be corrupted."
+        );
+        toast.error(
+          err.message === "Invalid file type. Only CSV and XLSX are supported."
+            ? "Invalid file type. Only CSV and XLSX are supported."
+            : "Error fetching or parsing dataset. File content might be corrupted."
+        );
       }
     } else {
       setError("Download URL is not available.");
       toast.error("Download URL is not available.");
     }
-  };
+  };  
   
 
   const handleCloseModal = () => {
@@ -186,41 +200,44 @@ export function SearchResultsComponent({
 
   const generateChartData = (data: any, type: "Bar" | "Line") => {
     const keys = Object.keys(data[0]);
+  
     if (keys.length < 2) {
       setError("Not enough data to generate chart.");
       toast.error("Not enough data to generate chart.");
       return null;
     }
   
-    const labelKey = keys[0];  // This is used as labels for the chart
-    const dataKey = keys[1];   // This is used as the data for bars/lines
+    // Assuming the first key is for labels and the rest are for dataset values
+    const labelKey = keys[0]; // This key will be used as labels for the x-axis
+    const datasets = keys.slice(1).map((key) => {
+      const datasetValues = data.map((row: any) => {
+        const value = Number(row[key]);
+        return isNaN(value) ? 0 : value;  // Ensure the value is a number or fallback to 0
+      });
   
-    // Ensure that both keys are valid and contain meaningful values
-    const labels = data.map((row: any) => String(row[labelKey]) || "Unknown");
-    const datasetValues = data.map((row: any) => {
-      const value = Number(row[dataKey]);
-      return isNaN(value) ? 0 : value;  // Ensure the value is a number or fallback to 0
+      return {
+        label: key, // Label for each dataset based on the key
+        data: datasetValues,
+        backgroundColor: type === "Bar" ? "rgba(75, 192, 192, 0.5)" : undefined,
+        borderColor: type === "Line" ? "rgba(75, 192, 192, 1)" : undefined,
+        fill: type === "Line" ? false : undefined,
+      };
     });
   
-    if (datasetValues.every((value: any) => value === 0)) {
+    const labels = data.map((row: any) => String(row[labelKey]) || "Unknown");
+  
+    if (datasets.every((dataset) => dataset.data.every((value: any) => value === 0))) {
       setError("All data points are 0 or invalid.");
       toast.error("All data points are 0 or invalid.");
       return null;
     }
   
     return {
-      labels,  // Array of labels for the x-axis
-      datasets: [
-        {
-          label: dataKey,
-          data: datasetValues,
-          backgroundColor: type === "Bar" ? "rgba(75, 192, 192, 0.5)" : undefined,
-          borderColor: type === "Line" ? "rgba(75, 192, 192, 1)" : undefined,
-          fill: type === "Line" ? false : undefined,
-        },
-      ],
+      labels, // Labels array for the x-axis
+      datasets, // Array of datasets
     };
   };
+  
 
   return (
     <div>
