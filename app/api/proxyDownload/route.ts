@@ -1,29 +1,23 @@
-// app/api/proxyDownload/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 
 export async function GET(request: NextRequest) {
-  const url = request.nextUrl.searchParams.get("url");
-
-  if (!url) {
-    return NextResponse.json(
-      { error: "URL parameter is required" },
-      { status: 400 }
-    );
-  }
-
-  // Security check to allow only specific domains
-  if (!url.startsWith("https://data.abudhabi/") && !url.startsWith("https://firebasestorage.googleapis.com//")) {
-    return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
-  }
-  
-
   try {
+    const { searchParams } = new URL(request.url);
+    const encodedUrl = searchParams.get("url");
+
+    if (!encodedUrl) {
+      return new NextResponse("Missing url parameter", { status: 400 });
+    }
+
+    // Decode the URL
+    const url = decodeURIComponent(encodedUrl);
+
+    // Make a request to the decoded URL
     const response = await axios.get(url, {
-      responseType: "arraybuffer",
+      responseType: "arraybuffer", // Use 'arraybuffer' for binary data
       timeout: 10000, // Timeout in milliseconds
     });
-    
 
     // Set appropriate headers
     const headers = new Headers();
@@ -37,11 +31,8 @@ export async function GET(request: NextRequest) {
     );
 
     return new NextResponse(response.data, { status: 200, headers });
-  } catch (error) {
-    console.error("Error fetching the file:", error);
-    return NextResponse.json(
-      { error: "Error fetching the file" },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    console.error("Error in proxyDownload:", error);
+    return new NextResponse("Error fetching the file", { status: 500 });
   }
 }

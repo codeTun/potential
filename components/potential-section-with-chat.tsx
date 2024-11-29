@@ -109,30 +109,44 @@ export function PotentialSection({
           const imageRef = ref(storage, `images/${uploadedImage.name}`);
           await uploadBytes(imageRef, uploadedImage);
           const fileUrl = await getDownloadURL(imageRef);
-         
+
           const endpoint = String(process.env.FORM_RECOGNIZER_ENDPOINT); // Ensure it's a string
-const key = String(process.env.FORM_RECOGNIZER_KEY); // Ensure it's a string
+          const key = String(process.env.FORM_RECOGNIZER_KEY); // Ensure it's a string
 
           const client = new DocumentAnalysisClient(
             endpoint!,
             new AzureKeyCredential(key!)
           );
 
-           if (fileUrl) {
+          if (fileUrl) {
             // Process the document using Azure Form Recognizer
-            const endpoint = process.env.FORM_RECOGNIZER_ENDPOINT; // Your Azure endpoint
-            const key = process.env.FORM_RECOGNIZER_KEY; // Your Azure key
+            const endpoint = "YOUR_AZURE_FORM_RECOGNIZER_ENDPOINT"; // Replace with your Azure endpoint
+            const key = "YOUR_AZURE_FORM_RECOGNIZER_KEY"; // Replace with your Azure key
+
             if (!endpoint || !key) {
-              throw new Error("Azure Form Recognizer endpoint or key is not defined.");
+              throw new Error(
+                "Azure Form Recognizer endpoint or key is not defined."
+              );
             }
-            const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
-  
-            const poller = await client.beginAnalyzeDocument("prebuilt-read", fileUrl);
-            const { content, pages } = await poller.pollUntilDone();
-  
-            if (pages.length > 0) {
-              extractedText = pages.map(page => page.lines.map(line => line.content).join(" ")).join(" ");
-              
+
+            const client = new DocumentAnalysisClient(
+              endpoint,
+              new AzureKeyCredential(key)
+            );
+
+            // Use beginAnalyzeDocumentFromUrl with the file URL
+            const poller = await client.beginAnalyzeDocumentFromUrl(
+              "prebuilt-read",
+              fileUrl
+            );
+            const { pages } = await poller.pollUntilDone();
+
+            if (pages && pages.length > 0) {
+              extractedText = pages
+                .map((page) =>
+                  page.lines?.map((line) => line.content).join(" ")
+                )
+                .join(" ");
             } else {
               throw new Error("No pages extracted from the document.");
             }
@@ -430,7 +444,7 @@ function ChatWindow({
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 50 }}
-      className="fixed bottom-5 right-5 z-50 w-[360px] max-w-full bg-white rounded-lg shadow-2xl overflow-hidden flex flex-col h-[90vh] max-h-[500px]" 
+      className="fixed bottom-5 right-5 z-50 w-[360px] max-w-full bg-white rounded-lg shadow-2xl overflow-hidden flex flex-col h-[90vh] max-h-[500px]"
     >
       <div className="bg-blue-500 text-white p-4 flex justify-between items-center">
         <h3 className="font-semibold">Potential The AI Assistant</h3>
